@@ -2,699 +2,1308 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Trading Bot Scheduler — POC Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>TradingBot — POC Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
 <style>
-  :root {
-    --bg: #0d1117;
-    --surface: #161b22;
-    --surface2: #21262d;
-    --border: #30363d;
-    --accent: #238636;
-    --accent-blue: #1f6feb;
-    --accent-orange: #d29922;
-    --accent-red: #da3633;
-    --accent-purple: #8957e5;
-    --text: #e6edf3;
-    --text-muted: #8b949e;
-    --morning: #1f6feb;
-    --afternoon: #d29922;
-    --running: #238636;
-    --idle: #30363d;
-    --success: #238636;
-    --failed: #da3633;
-    --scheduled: #8957e5;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    font-size: 14px;
-    min-height: 100vh;
-  }
+:root {
+  --bg: #070a0f;
+  --surface: #0e1319;
+  --surface2: #151c24;
+  --surface3: #1c2530;
+  --border: #1e2d3d;
+  --border2: #243444;
+  --accent: #00d4aa;
+  --accent-dim: rgba(0,212,170,.12);
+  --accent-glow: rgba(0,212,170,.25);
+  --blue: #3b9eff;
+  --blue-dim: rgba(59,158,255,.12);
+  --orange: #ff9d3b;
+  --orange-dim: rgba(255,157,59,.12);
+  --red: #ff4d6a;
+  --red-dim: rgba(255,77,106,.12);
+  --purple: #a78bfa;
+  --purple-dim: rgba(167,139,250,.12);
+  --yellow: #fbbf24;
+  --text: #e2eaf5;
+  --text-muted: #5a7a96;
+  --text-dim: #3a5570;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Syne', sans-serif;
+  --nav-h: 56px;
+  --tab-h: 52px;
+  --sidebar-w: 160px;
+}
 
-  /* TOP NAV */
-  .navbar {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 12px 24px;
-    display: flex;
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+/* ── SCANLINE TEXTURE ───────────────────────────────── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,.04) 3px, rgba(0,0,0,.04) 4px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── TOP NAVBAR ─────────────────────────────────────── */
+.navbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--nav-h);
+  background: rgba(7,10,15,.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 200;
+  gap: 8px;
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--sans);
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: .04em;
+  color: var(--text);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.nav-logo .pulse-ring {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  animation: pulseRing 1.6s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulseRing {
+  0%,100% { transform: scale(1); opacity: 1; box-shadow: 0 0 8px var(--accent); }
+  50% { transform: scale(1.4); opacity: .7; box-shadow: 0 0 16px var(--accent); }
+}
+
+.nav-clock-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.nav-clock {
+  font-family: var(--mono);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: .06em;
+  line-height: 1;
+}
+
+.nav-date {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: .03em;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.online-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+  animation: pulseRing 1.6s ease-in-out infinite;
+  display: none;
+}
+
+@media (min-width: 480px) {
+  .online-dot { display: block; }
+}
+
+.btn-stop {
+  background: var(--red-dim);
+  border: 1px solid rgba(255,77,106,.35);
+  color: var(--red);
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  letter-spacing: .04em;
+  transition: all .15s;
+  white-space: nowrap;
+}
+
+.btn-stop:hover, .btn-stop:active {
+  background: var(--red);
+  color: #fff;
+  border-color: var(--red);
+}
+
+/* ── BOTTOM TAB BAR — always hidden ────────────────── */
+.tab-bar { display: none !important; }
+
+/* ── SIDEBAR — always visible ───────────────────────── */
+.layout {
+  display: flex;
+  flex-direction: row;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
+  position: fixed;
+  top: var(--nav-h);
+  left: 0;
+  bottom: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 16px 0;
+  gap: 2px;
+  z-index: 100;
+  overflow-y: auto;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  transition: all .15s;
+  background: transparent;
+  border-top: none; border-right: none; border-bottom: none;
+  white-space: nowrap;
+  width: 100%;
+  text-align: left;
+}
+
+.sidebar-item:hover { color: var(--text); background: var(--surface2); }
+.sidebar-item.active { border-left-color: var(--accent); color: var(--accent); background: rgba(0,212,170,.05); }
+
+.sidebar-icon { font-size: 15px; flex-shrink: 0; }
+
+.main-scroll {
+  margin-left: var(--sidebar-w);
+}
+
+/* ── MAIN SCROLL AREA ───────────────────────────────── */
+.main-scroll {
+  padding-top: var(--nav-h);
+  padding-bottom: 24px;
+  min-height: 100vh;
+}
+
+/* ── PAGES ───────────────────────────────────────────── */
+.page { display: none; padding: 16px; }
+.page.active { display: block; }
+
+@media (min-width: 600px) { .page { padding: 20px; } }
+@media (min-width: 900px) { .page { padding: 24px 28px; } }
+
+/* ── SECTION HEADER ─────────────────────────────────── */
+.page-header {
+  margin-bottom: 20px;
+}
+
+.page-title {
+  font-family: var(--sans);
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -.01em;
+}
+
+@media (min-width: 600px) { .page-title { font-size: 24px; } }
+
+.page-sub {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  letter-spacing: .04em;
+}
+
+/* ── NEXT RUN BANNER ────────────────────────────────── */
+.next-banner {
+  background: linear-gradient(135deg, rgba(59,158,255,.08) 0%, rgba(0,212,170,.06) 100%);
+  border: 1px solid rgba(59,158,255,.25);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+
+.nb-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.nb-icon { font-size: 24px; flex-shrink: 0; }
+
+.nb-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--blue);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+
+.nb-sub {
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nb-countdown {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--orange);
+  letter-spacing: .06em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+@media (min-width: 480px) { .nb-countdown { font-size: 24px; } }
+
+/* ── STAT CARDS GRID ────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+@media (min-width: 600px) {
+  .stats-grid { grid-template-columns: repeat(4, 1fr); gap: 12px; }
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  filter: blur(20px);
+  opacity: .4;
+  pointer-events: none;
+}
+
+.stat-card.green::after { background: var(--accent); }
+.stat-card.blue::after { background: var(--blue); }
+.stat-card.orange::after { background: var(--orange); }
+.stat-card.purple::after { background: var(--purple); }
+
+.stat-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+@media (min-width: 600px) { .stat-value { font-size: 26px; } }
+
+.stat-card.green .stat-value { color: var(--accent); }
+.stat-card.blue .stat-value { color: var(--blue); }
+.stat-card.orange .stat-value { color: var(--orange); }
+.stat-card.purple .stat-value { color: var(--purple); }
+
+.stat-sub {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* ── SECTION LABEL ──────────────────────────────────── */
+.section-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── TIMELINE ───────────────────────────────────────── */
+.timeline-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.tl-bar-wrap {
+  display: flex;
+  height: 8px;
+  border-radius: 6px;
+  overflow: hidden;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.tl-bar-seg { height: 100%; border-radius: 3px; }
+
+.tl-times {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.tl-t {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-dim);
+}
+
+.tl-events {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tl-event {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 20px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.tl-event.morning { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(59,158,255,.2); }
+.tl-event.afternoon { background: var(--orange-dim); color: var(--orange); border: 1px solid rgba(255,157,59,.2); }
+.tl-event.exit { background: var(--red-dim); color: var(--red); border: 1px solid rgba(255,77,106,.2); }
+
+/* ── PNL CHART ──────────────────────────────────────── */
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.chart-card canvas {
+  width: 100% !important;
+  display: block;
+}
+
+/* ── GRID 2 COL ─────────────────────────────────────── */
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+@media (min-width: 700px) {
+  .grid2 { grid-template-columns: 1fr 1fr; }
+}
+
+/* ── LIVE POSITIONS TABLE ───────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 480px;
+}
+
+thead th {
+  background: var(--surface2);
+  padding: 10px 12px;
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+tbody td {
+  padding: 11px 12px;
+  border-bottom: 1px solid rgba(30,45,61,.7);
+  font-family: var(--mono);
+  font-size: 12px;
+  vertical-align: middle;
+}
+
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: rgba(255,255,255,.015); }
+
+/* ── BADGES ─────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  white-space: nowrap;
+}
+
+.badge .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.badge.running { background: rgba(0,212,170,.12); color: var(--accent); border: 1px solid rgba(0,212,170,.25); }
+.badge.running .dot { animation: pulseRing 1.2s ease-in-out infinite; }
+.badge.scheduled { background: var(--purple-dim); color: var(--purple); border: 1px solid rgba(167,139,250,.25); }
+.badge.completed { background: rgba(30,45,61,.7); color: var(--text-muted); border: 1px solid var(--border); }
+.badge.failed { background: var(--red-dim); color: var(--red); border: 1px solid rgba(255,77,106,.25); }
+.badge.morning { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(59,158,255,.2); }
+.badge.afternoon { background: var(--orange-dim); color: var(--orange); border: 1px solid rgba(255,157,59,.2); }
+
+/* ── WEEK GRID ──────────────────────────────────────── */
+.week-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 400px) {
+  .week-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+.day-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 8px;
+  text-align: center;
+}
+
+.day-card.today {
+  border-color: rgba(0,212,170,.4);
+  background: rgba(0,212,170,.04);
+}
+
+.day-name {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: .06em;
+  margin-bottom: 8px;
+}
+
+.day-card.today .day-name { color: var(--accent); }
+
+.sess-slot {
+  border-radius: 5px;
+  padding: 5px 4px;
+  margin-bottom: 4px;
+}
+
+.sess-slot:last-child { margin-bottom: 0; }
+.sess-slot.m { background: var(--blue-dim); border: 1px solid rgba(59,158,255,.15); }
+.sess-slot.a { background: var(--orange-dim); border: 1px solid rgba(255,157,59,.15); }
+
+.sess-time {
+  font-family: var(--mono);
+  font-size: 8px;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.sess-name {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.sess-slot.m .sess-name { color: var(--blue); }
+.sess-slot.a .sess-name { color: var(--orange); }
+
+/* ── STRATEGIES PAGE ────────────────────────────────── */
+.strategy-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 600px) { .strategy-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1100px) { .strategy-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.strategy-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color .2s;
+}
+
+.strategy-card:hover { border-color: var(--border2); }
+
+.strategy-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+}
+
+.strategy-card.morning-card::before { background: linear-gradient(90deg, var(--blue), transparent); }
+.strategy-card.afternoon-card::before { background: linear-gradient(90deg, var(--orange), transparent); }
+
+.sc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.sc-name {
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+
+.sc-stock {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.sc-pnl {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.sc-pnl.pos { color: var(--accent); }
+.sc-pnl.neg { color: var(--red); }
+
+.sc-pnl-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  text-align: right;
+  margin-bottom: 3px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.sc-divider { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+
+.sc-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+
+.sc-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 7px;
+  border-radius: 5px;
+  background: var(--surface2);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.sc-times {
+  display: flex;
+  gap: 0;
+  background: var(--surface2);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.sc-time-item {
+  flex: 1;
+  padding: 9px 10px;
+  border-right: 1px solid var(--border);
+}
+
+.sc-time-item:last-child { border-right: none; }
+
+.sct-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.sct-val {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.sct-val.exit-time { color: var(--red); }
+
+/* WIN RATE BAR */
+.win-bar-wrap {
+  margin-top: 10px;
+}
+
+.win-bar-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+.win-bar-bg {
+  height: 4px;
+  background: var(--surface3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.win-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--accent), var(--blue));
+  transition: width .6s ease;
+}
+
+/* ── LOGS PAGE ──────────────────────────────────────── */
+.log-controls {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  align-items: center;
+}
+
+.log-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all .15s;
+  text-transform: uppercase;
+}
+
+.log-btn:hover, .log-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+.log-btn.err:hover, .log-btn.err.active { border-color: var(--red); color: var(--red); background: var(--red-dim); }
+.log-btn.clear-btn { margin-left: auto; color: var(--text-dim); }
+.log-btn.clear-btn:hover { border-color: var(--red); color: var(--red); background: var(--red-dim); }
+
+.log-box {
+  background: #040608;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  max-height: 60vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (min-width: 600px) { .log-box { font-size: 12px; max-height: 65vh; } }
+
+.log-line {
+  display: flex;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(30,45,61,.4);
+  align-items: flex-start;
+}
+
+.log-line:last-child { border-bottom: none; }
+
+.log-time {
+  color: var(--text-dim);
+  min-width: 65px;
+  flex-shrink: 0;
+  font-size: 10px;
+  padding-top: 1px;
+}
+
+.log-level {
+  min-width: 54px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.log-line.info .log-level { color: var(--blue); }
+.log-line.success .log-level { color: var(--accent); }
+.log-line.warn .log-level { color: var(--yellow); }
+.log-line.error .log-level { color: var(--red); }
+
+.log-msg {
+  color: var(--text-muted);
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+/* ── LOG STATS BAR ──────────────────────────────────── */
+.log-stats {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.log-stat {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.log-stat .ls-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+}
+
+.ls-info .ls-dot { background: var(--blue); }
+.ls-success .ls-dot { background: var(--accent); }
+.ls-warn .ls-dot { background: var(--yellow); }
+.ls-error .ls-dot { background: var(--red); }
+
+.ls-count { color: var(--text); font-weight: 700; }
+.ls-label { color: var(--text-muted); }
+
+/* ── RUN DETAILS MODAL ──────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(4,6,8,.85);
+  backdrop-filter: blur(8px);
+  z-index: 500;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s;
+}
+
+.modal-backdrop.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 16px 16px 0 0;
+  width: 100%;
+  max-width: 560px;
+  padding: 20px;
+  transform: translateY(100%);
+  transition: transform .3s cubic-bezier(.32,0,.15,1);
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+@media (min-width: 600px) {
+  .modal-backdrop {
     align-items: center;
-    justify-content: space-between;
-    position: sticky; top: 0; z-index: 100;
+    padding: 20px;
   }
-  .navbar .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; }
-  .navbar .logo .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--running); animation: pulse 1.5s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
-  .navbar .clock { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); }
-  .navbar .date-badge { font-size: 12px; color: var(--text-muted); }
+  .modal {
+    border-radius: 16px;
+    transform: scale(.95);
+    max-height: 80vh;
+  }
+  .modal-backdrop.open .modal {
+    transform: scale(1);
+  }
+}
 
-  /* LAYOUT */
-  .layout { display: flex; height: calc(100vh - 57px); }
-  .sidebar {
-    width: 200px; min-width: 200px;
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    padding: 16px 0;
-    display: flex; flex-direction: column; gap: 2px;
-  }
-  .sidebar-item {
-    padding: 10px 20px;
-    cursor: pointer;
-    border-left: 3px solid transparent;
-    display: flex; align-items: center; gap: 10px;
-    color: var(--text-muted);
-    transition: all 0.15s;
-    font-size: 13px;
-  }
-  .sidebar-item:hover { color: var(--text); background: var(--surface2); }
-  .sidebar-item.active { border-left-color: var(--accent-blue); color: var(--text); background: var(--surface2); }
-  .sidebar-item .icon { font-size: 16px; }
-  .main { flex: 1; overflow-y: auto; padding: 24px; }
+.modal-backdrop.open .modal { transform: translateY(0); }
 
-  /* PAGES */
-  .page { display: none; }
-  .page.active { display: block; }
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
 
-  /* SECTION TITLE */
-  .section-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
-  .section-sub { color: var(--text-muted); font-size: 13px; margin-bottom: 20px; }
+.modal-title {
+  font-family: var(--sans);
+  font-size: 16px;
+  font-weight: 800;
+}
 
-  /* STAT CARDS */
-  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-  .stat-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 18px 20px;
-  }
-  .stat-card .label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; }
-  .stat-card .value { font-size: 26px; font-weight: 700; }
-  .stat-card .sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-  .stat-card.green .value { color: #3fb950; }
-  .stat-card.red .value { color: var(--accent-red); }
-  .stat-card.blue .value { color: #79c0ff; }
-  .stat-card.orange .value { color: #ffa657; }
+.modal-close {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  transition: all .15s;
+}
 
-  /* SCHEDULE GRID */
-  .schedule-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-  .week-label { font-size: 13px; color: var(--text-muted); }
+.modal-close:hover { background: var(--red-dim); color: var(--red); border-color: rgba(255,77,106,.3); }
 
-  .schedule-table { width: 100%; border-collapse: collapse; border-radius: 10px; overflow: hidden; }
-  .schedule-table th {
-    background: var(--surface2);
-    padding: 10px 14px;
-    text-align: left;
-    font-size: 12px;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: .05em;
-    border-bottom: 1px solid var(--border);
-  }
-  .schedule-table td {
-    padding: 12px 14px;
-    border-bottom: 1px solid var(--border);
-    vertical-align: middle;
-  }
-  .schedule-table tr:last-child td { border-bottom: none; }
-  .schedule-table tr:hover td { background: rgba(255,255,255,.02); }
-  .schedule-table { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+.run-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
 
-  /* DAY PILLS */
-  .day-pills { display: flex; gap: 4px; flex-wrap: wrap; }
-  .day-pill {
-    font-size: 11px;
-    padding: 3px 8px;
-    border-radius: 20px;
-    font-weight: 600;
-  }
-  .day-pill.active-day { background: rgba(31,111,235,.2); color: #79c0ff; border: 1px solid rgba(31,111,235,.4); }
-  .day-pill.today { background: rgba(35,134,54,.2); color: #3fb950; border: 1px solid rgba(35,134,54,.5); }
+@media (min-width: 400px) { .run-detail-grid { grid-template-columns: repeat(3, 1fr); } }
 
-  /* SESSION BADGE */
-  .session-badge {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 4px 10px; border-radius: 20px;
-    font-size: 12px; font-weight: 600;
-  }
-  .session-badge.morning { background: rgba(31,111,235,.15); color: #79c0ff; border: 1px solid rgba(31,111,235,.3); }
-  .session-badge.afternoon { background: rgba(210,153,34,.15); color: #ffa657; border: 1px solid rgba(210,153,34,.3); }
+.rd-item {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+}
 
-  /* STATUS BADGE */
-  .status-badge {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 4px 10px; border-radius: 20px;
-    font-size: 12px; font-weight: 600;
-  }
-  .status-badge.running { background: rgba(35,134,54,.2); color: #3fb950; border: 1px solid rgba(35,134,54,.4); }
-  .status-badge.scheduled { background: rgba(137,87,229,.2); color: #bc8cff; border: 1px solid rgba(137,87,229,.4); }
-  .status-badge.completed { background: rgba(56,56,56,.4); color: var(--text-muted); border: 1px solid var(--border); }
-  .status-badge.failed { background: rgba(218,54,51,.15); color: #ff7b72; border: 1px solid rgba(218,54,51,.3); }
-  .status-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-  .status-badge.running .dot { animation: pulse 1.2s infinite; }
+.rd-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
 
-  /* TIMELINE */
-  .timeline { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 24px; }
-  .timeline-title { font-size: 14px; font-weight: 600; margin-bottom: 16px; color: var(--text-muted); }
-  .tl-track {
-    display: flex; align-items: center; gap: 0;
-    position: relative; padding: 8px 0;
-  }
-  .tl-bar {
-    height: 8px; border-radius: 4px;
-    position: relative;
-  }
-  .tl-labels { display: flex; justify-content: space-between; margin-top: 8px; }
-  .tl-label { font-size: 11px; color: var(--text-muted); }
-  .tl-events { display: flex; margin-top: 12px; flex-wrap: wrap; gap: 8px; }
-  .tl-event {
-    font-size: 11px; padding: 4px 10px; border-radius: 20px;
-    display: flex; align-items: center; gap: 5px;
-  }
-  .tl-event.morning { background: rgba(31,111,235,.15); color: #79c0ff; }
-  .tl-event.afternoon { background: rgba(210,153,34,.15); color: #ffa657; }
-  .tl-event.exit { background: rgba(218,54,51,.12); color: #ff7b72; }
+.rd-val {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
 
-  /* STRATEGY CARDS */
-  .strategy-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; }
-  .strategy-card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px;
-  }
-  .strategy-card .s-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-  .strategy-card .s-name { font-size: 15px; font-weight: 700; }
-  .strategy-card .s-stock { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-  .strategy-card .s-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
-  .strategy-card .s-tag {
-    font-size: 11px; padding: 3px 8px; border-radius: 6px;
-    background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border);
-  }
-  .strategy-card .s-pnl { font-size: 22px; font-weight: 700; }
-  .strategy-card .s-pnl.pos { color: #3fb950; }
-  .strategy-card .s-pnl.neg { color: #ff7b72; }
-  .strategy-card .s-divider { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
-  .strategy-card .s-times { display: flex; gap: 16px; }
-  .strategy-card .s-time-item { font-size: 12px; }
-  .strategy-card .s-time-item .t-label { color: var(--text-muted); margin-bottom: 2px; }
-  .strategy-card .s-time-item .t-val { font-weight: 600; font-size: 13px; }
+.rd-val.pos { color: var(--accent); }
+.rd-val.neg { color: var(--red); }
 
-  /* TOGGLE SWITCH */
-  .toggle { position: relative; width: 36px; height: 20px; }
-  .toggle input { opacity: 0; width: 0; height: 0; }
-  .toggle-slider {
-    position: absolute; cursor: pointer; inset: 0;
-    background: var(--border); border-radius: 20px; transition: .2s;
-  }
-  .toggle-slider:before {
-    content: ''; position: absolute;
-    height: 14px; width: 14px; left: 3px; bottom: 3px;
-    background: white; border-radius: 50%; transition: .2s;
-  }
-  .toggle input:checked + .toggle-slider { background: var(--accent); }
-  .toggle input:checked + .toggle-slider:before { transform: translateX(16px); }
+.run-log-mini {
+  background: #040608;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  max-height: 200px;
+  overflow-y: auto;
+}
 
-  /* BUTTONS */
-  .btn {
-    padding: 8px 16px; border-radius: 7px; border: none; cursor: pointer;
-    font-size: 13px; font-weight: 600; transition: all 0.15s;
-  }
-  .btn-green { background: var(--accent); color: white; }
-  .btn-green:hover { background: #2ea043; }
-  .btn-red { background: var(--accent-red); color: white; }
-  .btn-red:hover { background: #f85149; }
-  .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
-  .btn-outline:hover { background: var(--surface2); }
-  .btn-blue { background: var(--accent-blue); color: white; }
-  .btn-blue:hover { background: #388bfd; }
+/* ── TOGGLE ─────────────────────────────────────────── */
+.toggle { position: relative; width: 36px; height: 20px; cursor: pointer; }
+.toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggle-slider {
+  position: absolute; inset: 0;
+  background: var(--border); border-radius: 20px; transition: .2s;
+}
+.toggle-slider::before {
+  content: ''; position: absolute;
+  height: 14px; width: 14px; left: 3px; bottom: 3px;
+  background: var(--text-muted); border-radius: 50%; transition: .2s;
+}
+.toggle input:checked + .toggle-slider { background: var(--accent); }
+.toggle input:checked + .toggle-slider::before { transform: translateX(16px); background: white; }
 
-  /* LOGS */
-  .log-container {
-    background: #0d1117; border: 1px solid var(--border); border-radius: 10px;
-    font-family: 'Consolas', 'Courier New', monospace; font-size: 12px;
-    max-height: 320px; overflow-y: auto; padding: 16px;
-  }
-  .log-line { padding: 3px 0; display: flex; gap: 10px; }
-  .log-line .log-time { color: #484f58; min-width: 80px; }
-  .log-line .log-level { min-width: 54px; font-weight: 700; }
-  .log-line.info .log-level { color: #79c0ff; }
-  .log-line.success .log-level { color: #3fb950; }
-  .log-line.warn .log-level { color: #d29922; }
-  .log-line.error .log-level { color: #ff7b72; }
-  .log-line .log-msg { color: var(--text-muted); }
+/* ── SCROLLBAR ─────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
 
-  /* WEEKDAY SCHEDULE VISUAL */
-  .week-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 24px; }
-  .day-card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px;
-    text-align: center;
-  }
-  .day-card.today { border-color: rgba(35,134,54,.5); background: rgba(35,134,54,.05); }
-  .day-card .day-name { font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--text-muted); }
-  .day-card.today .day-name { color: #3fb950; }
-  .session-slot {
-    border-radius: 7px; padding: 8px 6px; margin-bottom: 6px; font-size: 11px; font-weight: 600;
-  }
-  .session-slot.morning-slot { background: rgba(31,111,235,.15); color: #79c0ff; border: 1px solid rgba(31,111,235,.2); }
-  .session-slot.afternoon-slot { background: rgba(210,153,34,.12); color: #ffa657; border: 1px solid rgba(210,153,34,.2); }
-  .session-slot .slot-time { font-size: 10px; opacity: .8; margin-bottom: 2px; }
-  .session-slot .slot-name { font-size: 11px; }
+/* ── UTILITY ────────────────────────────────────────── */
+code.pill {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
 
-  /* NOTIFICATIONS */
-  .notif-list { display: flex; flex-direction: column; gap: 8px; }
-  .notif {
-    display: flex; align-items: flex-start; gap: 12px;
-    background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px;
-  }
-  .notif .notif-icon { font-size: 18px; }
-  .notif .notif-body .notif-title { font-size: 13px; font-weight: 600; }
-  .notif .notif-body .notif-msg { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-  .notif .notif-time { margin-left: auto; font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.pos { color: var(--accent); }
+.neg { color: var(--red); }
+.fw7 { font-weight: 700; }
 
-  /* PNL CHART */
-  .chart-area { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
-  .chart-title { font-size: 13px; font-weight: 600; margin-bottom: 16px; color: var(--text-muted); }
-  canvas { width: 100% !important; }
-
-  /* NEXT RUN BANNER */
-  .next-run-banner {
-    background: linear-gradient(135deg, rgba(31,111,235,.1), rgba(137,87,229,.1));
-    border: 1px solid rgba(31,111,235,.3);
-    border-radius: 10px; padding: 16px 20px;
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 24px;
-  }
-  .next-run-banner .nrb-left { display: flex; align-items: center; gap: 12px; }
-  .next-run-banner .nrb-icon { font-size: 28px; }
-  .next-run-banner .nrb-title { font-size: 14px; font-weight: 700; color: #79c0ff; }
-  .next-run-banner .nrb-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-  .next-run-banner .nrb-countdown { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; color: #ffa657; }
-
-  /* SCROLLBAR */
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-  /* RESPONSIVE TABLE WRAPPER */
-  .table-wrap { overflow-x: auto; border-radius: 10px; }
-
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
 </style>
 </head>
 <body>
 
-<!-- NAVBAR -->
+<!-- ═══ NAVBAR ═══ -->
 <nav class="navbar">
-  <div class="logo">
-    <div class="dot"></div>
-    <span>⚡ TradingBot Scheduler</span>
+  <div class="nav-logo">
+    <div class="pulse-ring"></div>
+    ⚡ TradingBot
   </div>
-  <div style="text-align:center">
-    <div class="clock" id="liveClock">--:--:--</div>
-    <div class="date-badge" id="liveDate">Loading...</div>
+  <div class="nav-clock-block">
+    <div class="nav-clock" id="liveClock">--:--:--</div>
+    <div class="nav-date" id="liveDate">Loading…</div>
   </div>
-  <div style="display:flex;gap:10px;align-items:center">
-    <span class="status-badge running"><span class="dot"></span>System Online</span>
-    <button class="btn btn-red" onclick="emergencyStop()">🚨 Emergency Stop</button>
+  <div class="nav-right">
+    <div class="online-dot"></div>
+    <button class="btn-stop" onclick="emergencyStop()">🚨 Stop</button>
   </div>
 </nav>
 
+<!-- ═══ LAYOUT ═══ -->
 <div class="layout">
-  <!-- SIDEBAR -->
-  <aside class="sidebar">
-    <div class="sidebar-item active" onclick="showPage('dashboard',this)"><span class="icon">📊</span> Dashboard</div>
-    <div class="sidebar-item" onclick="showPage('schedule',this)"><span class="icon">📅</span> Schedule</div>
-    <div class="sidebar-item" onclick="showPage('strategies',this)"><span class="icon">🎯</span> Strategies</div>
-    <div class="sidebar-item" onclick="showPage('trades',this)"><span class="icon">💹</span> Trades</div>
-    <div class="sidebar-item" onclick="showPage('logs',this)"><span class="icon">📋</span> Logs</div>
-    <div class="sidebar-item" onclick="showPage('settings',this)"><span class="icon">⚙️</span> Settings</div>
+
+  <!-- Desktop Sidebar -->
+  <aside class="sidebar" id="desktopSidebar">
+    <button class="sidebar-item active" onclick="showPage('dashboard',this)" data-page="dashboard">
+      <span class="sidebar-icon">📊</span> Dashboard
+    </button>
+    <button class="sidebar-item" onclick="showPage('strategies',this)" data-page="strategies">
+      <span class="sidebar-icon">🎯</span> Strategies
+    </button>
+    <button class="sidebar-item" onclick="showPage('logs',this)" data-page="logs">
+      <span class="sidebar-icon">📋</span> Logs
+    </button>
   </aside>
 
-  <main class="main">
+  <!-- Main Scroll -->
+  <div class="main-scroll">
 
-    <!-- ═══════════════ DASHBOARD PAGE ═══════════════ -->
+    <!-- ═══════════ DASHBOARD PAGE ═══════════ -->
     <div id="page-dashboard" class="page active">
-      <div class="section-title">📊 Dashboard</div>
-      <div class="section-sub">Real-time overview — Mon–Fri Morning &amp; Afternoon sessions</div>
-
-      <!-- NEXT RUN BANNER -->
-      <div class="next-run-banner">
-        <div class="nrb-left">
-          <div class="nrb-icon">⏰</div>
-          <div>
-            <div class="nrb-title">Next Scheduled Run</div>
-            <div class="nrb-sub" id="nextRunLabel">DIXON Afternoon ORB — Today 13:00</div>
-          </div>
-        </div>
-        <div class="nrb-countdown" id="countdown">--:--:--</div>
+      <div class="page-header">
+        <div class="page-title">📊 Dashboard</div>
+        <div class="page-sub">MON–FRI · MORNING 09:20 · AFTERNOON 13:05</div>
       </div>
 
-      <!-- STAT CARDS -->
+      <!-- Next Run Banner -->
+      <div class="next-banner">
+        <div class="nb-left">
+          <div class="nb-icon">⏰</div>
+          <div>
+            <div class="nb-title">Next Run</div>
+            <div class="nb-sub" id="nextRunLabel">Loading…</div>
+          </div>
+        </div>
+        <div class="nb-countdown" id="countdown">--:--:--</div>
+      </div>
+
+      <!-- Stat Cards -->
       <div class="stats-grid">
         <div class="stat-card green">
-          <div class="label">Today's PnL</div>
-          <div class="value">₹2,340</div>
-          <div class="sub">↑ Morning +₹890 | Afternoon +₹1,450</div>
+          <div class="stat-label">Today PnL</div>
+          <div class="stat-value">₹2,340</div>
+          <div class="stat-sub">↑ +₹890 · +₹1,450</div>
         </div>
         <div class="stat-card blue">
-          <div class="label">Bots Active</div>
-          <div class="value">2</div>
-          <div class="sub">Morning ✓ | Afternoon ✓</div>
+          <div class="stat-label">Bots Active</div>
+          <div class="stat-value">2</div>
+          <div class="stat-sub">Morning ✓ Aft ✓</div>
         </div>
         <div class="stat-card orange">
-          <div class="label">Open Positions</div>
-          <div class="value">2</div>
-          <div class="sub">CE: 1 | PE: 1</div>
+          <div class="stat-label">Open Pos.</div>
+          <div class="stat-value">2</div>
+          <div class="stat-sub">CE: 1 · PE: 1</div>
         </div>
-        <div class="stat-card green">
-          <div class="label">Win Rate</div>
-          <div class="value">74%</div>
-          <div class="sub">This week: 11/15 trades</div>
+        <div class="stat-card purple">
+          <div class="stat-label">Win Rate</div>
+          <div class="stat-value">74%</div>
+          <div class="stat-sub">11/15 this week</div>
         </div>
       </div>
 
-      <!-- WEEK GRID -->
-      <div class="section-title" style="font-size:14px;margin-bottom:12px">📅 This Week — Mon to Fri</div>
+      <!-- Week Grid -->
+      <div class="section-label">📅 This Week — Mon to Fri</div>
       <div class="week-grid" id="weekGrid"></div>
 
-      <!-- TIMELINE + CHART -->
-      <div class="grid-2">
-        <div class="timeline">
-          <div class="timeline-title">⏱ Today's Session Timeline</div>
-          <div class="tl-track">
-            <div style="display:flex;width:100%;height:10px;border-radius:5px;overflow:hidden;gap:2px">
-              <div class="tl-bar" style="width:18%;background:#1a2332" title="09:00 Pre-market"></div>
-              <div class="tl-bar" style="width:14%;background:rgba(31,111,235,.4)" title="Morning ORB Active"></div>
-              <div class="tl-bar" style="width:26%;background:#1a2332" title="Mid-day idle"></div>
-              <div class="tl-bar" style="width:14%;background:rgba(210,153,34,.5)" title="Afternoon ORB Active"></div>
-              <div class="tl-bar" style="width:20%;background:#1a2332" title="Post-market"></div>
-              <div class="tl-bar" style="width:8%;background:var(--border)" title="After hours"></div>
-            </div>
+      <!-- Timeline + Chart -->
+      <div class="grid2">
+        <div class="timeline-card">
+          <div class="section-label" style="margin-bottom:10px">⏱ Session Timeline</div>
+          <div class="tl-bar-wrap">
+            <div class="tl-bar-seg" style="width:18%;background:#0d1a2a"></div>
+            <div class="tl-bar-seg" style="width:14%;background:rgba(59,158,255,.4)"></div>
+            <div class="tl-bar-seg" style="width:26%;background:#0d1a2a"></div>
+            <div class="tl-bar-seg" style="width:14%;background:rgba(255,157,59,.5)"></div>
+            <div class="tl-bar-seg" style="width:20%;background:#0d1a2a"></div>
+            <div class="tl-bar-seg" style="flex:1;background:var(--border)"></div>
           </div>
-          <div class="tl-labels">
-            <span class="tl-label">09:15</span>
-            <span class="tl-label">10:30</span>
-            <span class="tl-label">12:00</span>
-            <span class="tl-label">13:00</span>
-            <span class="tl-label">15:15</span>
-            <span class="tl-label">15:30</span>
+          <div class="tl-times">
+            <span class="tl-t">09:15</span>
+            <span class="tl-t">10:30</span>
+            <span class="tl-t">12:00</span>
+            <span class="tl-t">13:00</span>
+            <span class="tl-t">15:30</span>
           </div>
           <div class="tl-events">
-            <span class="tl-event morning">🌅 Morning ORB: 09:20–11:00</span>
-            <span class="tl-event afternoon">🌆 Afternoon ORB: 13:05–15:15</span>
-            <span class="tl-event exit">🔴 Hard Exit: 15:15</span>
+            <span class="tl-event morning">🌅 Morning ORB 09:20–11:30</span>
+            <span class="tl-event afternoon">🌆 Afternoon ORB 13:05–15:15</span>
+            <span class="tl-event exit">🔴 Hard Exit 15:15</span>
           </div>
         </div>
 
-        <div class="chart-area">
-          <div class="chart-title">📈 PnL Trend — This Week (₹)</div>
-          <canvas id="pnlChart" height="140"></canvas>
+        <div class="chart-card">
+          <div class="section-label" style="margin-bottom:10px">📈 PnL This Week (₹)</div>
+          <canvas id="pnlChart" height="120"></canvas>
         </div>
       </div>
 
-      <!-- LIVE POSITIONS -->
-      <div class="section-title" style="font-size:14px;margin-bottom:12px">🔴 Live Positions</div>
-      <div class="table-wrap">
-        <table class="schedule-table">
-          <thead>
-            <tr>
-              <th>Symbol</th><th>Type</th><th>Entry</th><th>LTP</th><th>SL</th><th>Target</th><th>PnL</th><th>Session</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><strong>DIXON 15000 CE</strong></td>
-              <td><span style="color:#3fb950;font-weight:700">CE</span></td>
-              <td>₹142</td>
-              <td id="ltp1">₹158</td>
-              <td>₹120</td>
-              <td>₹180</td>
-              <td id="pnl1" style="color:#3fb950;font-weight:700">+₹800</td>
-              <td><span class="session-badge afternoon">🌆 Afternoon</span></td>
-            </tr>
-            <tr>
-              <td><strong>DIXON 14900 PE</strong></td>
-              <td><span style="color:#ffa657;font-weight:700">PE</span></td>
-              <td>₹98</td>
-              <td id="ltp2">₹112</td>
-              <td>₹80</td>
-              <td>₹140</td>
-              <td id="pnl2" style="color:#3fb950;font-weight:700">+₹650</td>
-              <td><span class="session-badge morning">🌅 Morning</span></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ═══════════════ SCHEDULE PAGE ═══════════════ -->
-    <div id="page-schedule" class="page">
-      <div class="section-title">📅 Bot Schedule</div>
-      <div class="section-sub">All strategies run Mon–Fri. Each has a Morning and Afternoon session.</div>
-
-      <div class="schedule-header">
-        <span class="week-label" id="weekRangeLabel"></span>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-outline">← Prev Week</button>
-          <button class="btn btn-blue">Today</button>
-          <button class="btn btn-outline">Next Week →</button>
-        </div>
-      </div>
-
-      <div class="table-wrap" style="margin-bottom:24px">
-        <table class="schedule-table">
-          <thead>
-            <tr>
-              <th>Strategy</th>
-              <th>Stock / Symbol</th>
-              <th>Session</th>
-              <th>Trigger Time</th>
-              <th>Exit Time</th>
-              <th>Days</th>
-              <th>Status</th>
-              <th>Enabled</th>
-            </tr>
-          </thead>
-          <tbody id="scheduleBody"></tbody>
-        </table>
-      </div>
-
-      <!-- CRON REFERENCE -->
-      <div class="timeline" style="margin-bottom:0">
-        <div class="timeline-title">⚙️ APScheduler Cron Config (Auto-generated)</div>
-        <div class="log-container" style="max-height:200px">
-          <div class="log-line info"><span class="log-time">CONFIG</span><span class="log-level" style="color:#3fb950">CRON</span><span class="log-msg">scheduler.add_job(dixon_morning_bot, 'cron', day_of_week='mon-fri', hour=9, minute=20)</span></div>
-          <div class="log-line info"><span class="log-time">CONFIG</span><span class="log-level" style="color:#ffa657">CRON</span><span class="log-msg">scheduler.add_job(dixon_afternoon_bot, 'cron', day_of_week='mon-fri', hour=13, minute=0)</span></div>
-          <div class="log-line info"><span class="log-time">CONFIG</span><span class="log-level" style="color:#3fb950">CRON</span><span class="log-msg">scheduler.add_job(amber_morning_bot, 'cron', day_of_week='mon-fri', hour=9, minute=20)</span></div>
-          <div class="log-line info"><span class="log-time">CONFIG</span><span class="log-level" style="color:#ffa657">CRON</span><span class="log-msg">scheduler.add_job(amber_afternoon_bot, 'cron', day_of_week='mon-fri', hour=13, minute=0)</span></div>
-          <div class="log-line warn"><span class="log-time">NOTE</span><span class="log-level">SKIP</span><span class="log-msg">Bots auto-skip weekends (Sat/Sun) and NSE market holidays.</span></div>
-          <div class="log-line success"><span class="log-time">SYSTEM</span><span class="log-level">START</span><span class="log-msg">APScheduler started. Next jobs queued. Market hours: 09:15–15:30 IST.</span></div>
+      <!-- Live Positions -->
+      <div class="section-label">🔴 Live Positions</div>
+      <div class="card">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Symbol</th><th>Type</th><th>Entry</th><th>LTP</th><th>Target</th><th>PnL</th><th>Session</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="fw7">DIXON 15000 CE</td>
+                <td><span class="pos fw7">CE</span></td>
+                <td>₹142</td>
+                <td id="ltp1">₹158</td>
+                <td>₹180</td>
+                <td id="pnl1" class="pos fw7">+₹800</td>
+                <td><span class="badge afternoon">🌆 Aft</span></td>
+              </tr>
+              <tr>
+                <td class="fw7">DIXON 14900 PE</td>
+                <td><span style="color:var(--orange)" class="fw7">PE</span></td>
+                <td>₹98</td>
+                <td id="ltp2">₹112</td>
+                <td>₹140</td>
+                <td id="pnl2" class="pos fw7">+₹650</td>
+                <td><span class="badge morning">🌅 Morn</span></td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
 
-    <!-- ═══════════════ STRATEGIES PAGE ═══════════════ -->
+    <!-- ═══════════ STRATEGIES PAGE ═══════════ -->
     <div id="page-strategies" class="page">
-      <div class="section-title">🎯 Strategies</div>
-      <div class="section-sub">All active strategies — Morning ORB (09:20) and Afternoon ORB (13:05)</div>
+      <div class="page-header">
+        <div class="page-title">🎯 Strategies</div>
+        <div class="page-sub">MORNING ORB 09:20 · AFTERNOON ORB 13:05 · TAP FOR RUN DETAILS</div>
+      </div>
+
       <div class="strategy-grid" id="strategyGrid"></div>
     </div>
 
-    <!-- ═══════════════ TRADES PAGE ═══════════════ -->
-    <div id="page-trades" class="page">
-      <div class="section-title">💹 Trade History</div>
-      <div class="section-sub">All trades across Morning and Afternoon sessions this week</div>
-      <div class="table-wrap">
-        <table class="schedule-table" id="tradesTable">
-          <thead>
-            <tr>
-              <th>#</th><th>Date</th><th>Symbol</th><th>Session</th><th>Type</th>
-              <th>Entry</th><th>Exit</th><th>Qty</th><th>PnL</th><th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="tradesBody"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ═══════════════ LOGS PAGE ═══════════════ -->
+    <!-- ═══════════ LOGS PAGE ═══════════ -->
     <div id="page-logs" class="page">
-      <div class="section-title">📋 System Logs</div>
-      <div class="section-sub">Live log stream from all bots</div>
-      <div style="display:flex;gap:8px;margin-bottom:12px">
-        <button class="btn btn-outline" onclick="filterLog('ALL')">All</button>
-        <button class="btn btn-outline" onclick="filterLog('INFO')">Info</button>
-        <button class="btn btn-outline" onclick="filterLog('TRADE')">Trade</button>
-        <button class="btn btn-outline" onclick="filterLog('WARN')">Warn</button>
-        <button class="btn btn-red" onclick="filterLog('ERROR')">Error</button>
-        <button class="btn btn-outline" style="margin-left:auto" onclick="clearLogs()">Clear</button>
+      <div class="page-header">
+        <div class="page-title">📋 System Logs</div>
+        <div class="page-sub">LIVE LOG STREAM · ALL BOTS · AUTO-REFRESH 5s</div>
       </div>
-      <div class="log-container" id="logsContainer" style="max-height:500px"></div>
+
+      <!-- Log Stats -->
+      <div class="log-stats" id="logStats"></div>
+
+      <!-- Controls -->
+      <div class="log-controls">
+        <button class="log-btn active" onclick="filterLog('ALL',this)">All</button>
+        <button class="log-btn" onclick="filterLog('INFO',this)">Info</button>
+        <button class="log-btn" onclick="filterLog('TRADE',this)">Trade</button>
+        <button class="log-btn" onclick="filterLog('WARN',this)">Warn</button>
+        <button class="log-btn err" onclick="filterLog('ERROR',this)">Error</button>
+        <button class="log-btn clear-btn" onclick="clearLogs()">Clear</button>
+      </div>
+
+      <div class="log-box" id="logsContainer"></div>
     </div>
 
-    <!-- ═══════════════ SETTINGS PAGE ═══════════════ -->
-    <div id="page-settings" class="page">
-      <div class="section-title">⚙️ Settings</div>
-      <div class="section-sub">Configure schedule timings, risk parameters, and notifications</div>
-      <div class="grid-2">
-        <div class="strategy-card">
-          <div class="s-header">
-            <div>
-              <div class="s-name">⏰ Morning Session</div>
-              <div class="s-stock">ORB Trigger Time</div>
-            </div>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:12px">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="color:var(--text-muted);font-size:13px">Candle Time (ORB Start)</span>
-              <input type="time" value="09:15" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px"/>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="color:var(--text-muted);font-size:13px">Trade Entry After</span>
-              <input type="time" value="09:20" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px"/>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="color:var(--text-muted);font-size:13px">Hard Exit Time</span>
-              <input type="time" value="11:30" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px"/>
-            </div>
-          </div>
-        </div>
-        <div class="strategy-card">
-          <div class="s-header">
-            <div>
-              <div class="s-name">🌆 Afternoon Session</div>
-              <div class="s-stock">ORB Trigger Time</div>
-            </div>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:12px">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="color:var(--text-muted);font-size:13px">Candle Time (ORB Start)</span>
-              <input type="time" value="13:00" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px"/>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="color:var(--text-muted);font-size:13px">Trade Entry After</span>
-              <input type="time" value="13:05" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px"/>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="color:var(--text-muted);font-size:13px">Hard Exit Time</span>
-              <input type="time" value="15:15" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px"/>
-            </div>
-          </div>
-        </div>
-        <div class="strategy-card">
-          <div class="s-header">
-            <div>
-              <div class="s-name">🛡️ Risk Parameters</div>
-              <div class="s-stock">Global limits per session</div>
-            </div>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:12px">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="color:var(--text-muted);font-size:13px">Max Loss Per Session (₹)</span>
-              <input type="number" value="5000" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:100px;text-align:right"/>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="color:var(--text-muted);font-size:13px">Max Profit Target (₹)</span>
-              <input type="number" value="10000" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:100px;text-align:right"/>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="color:var(--text-muted);font-size:13px">SL Buffer (points)</span>
-              <input type="number" value="10" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:100px;text-align:right"/>
-            </div>
-          </div>
-        </div>
-        <div class="strategy-card">
-          <div class="s-header">
-            <div>
-              <div class="s-name">🔔 Notifications</div>
-              <div class="s-stock">Alerts &amp; Webhooks</div>
-            </div>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:14px">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="color:var(--text-muted);font-size:13px">Trade Entry Alert</span>
-              <label class="toggle"><input type="checkbox" checked/><span class="toggle-slider"></span></label>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="color:var(--text-muted);font-size:13px">SL Hit Alert</span>
-              <label class="toggle"><input type="checkbox" checked/><span class="toggle-slider"></span></label>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="color:var(--text-muted);font-size:13px">Daily PnL Summary</span>
-              <label class="toggle"><input type="checkbox" checked/><span class="toggle-slider"></span></label>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="color:var(--text-muted);font-size:13px">Telegram Webhook</span>
-              <label class="toggle"><input type="checkbox"/><span class="toggle-slider"></span></label>
-            </div>
-          </div>
-        </div>
-      </div>
-      <button class="btn btn-green" style="margin-top:4px">💾 Save Settings</button>
-    </div>
+  </div><!-- /main-scroll -->
+</div><!-- /layout -->
 
-  </main>
+<!-- Mobile Tab Bar -->
+<nav class="tab-bar">
+  <button class="tab-item active" onclick="showPage('dashboard',this)" data-tab="dashboard">
+    <span class="tab-icon">📊</span>
+    <span class="tab-label">Dashboard</span>
+  </button>
+  <button class="tab-item" onclick="showPage('strategies',this)" data-tab="strategies">
+    <span class="tab-icon">🎯</span>
+    <span class="tab-label">Strategies</span>
+  </button>
+  <button class="tab-item" onclick="showPage('logs',this)" data-tab="logs">
+    <span class="tab-icon">📋</span>
+    <span class="tab-label">Logs</span>
+  </button>
+</nav>
+
+<!-- Run Details Modal -->
+<div class="modal-backdrop" id="runModal">
+  <div class="modal" id="modalContent">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">Run Details</div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
 </div>
 
 <script>
-// ─── DATA ─────────────────────────────────────────────────────────────────────
+// ─── DATA ────────────────────────────────────────────────────────────
 const STRATEGIES = [
-  { name:"DIXON Morning ORB", stock:"DIXON (NFO)", session:"morning", triggerCandle:"09:15", entry:"09:20", exit:"11:30", pnl:890, winRate:72, trades:18, status:"completed" },
-  { name:"DIXON Afternoon ORB", stock:"DIXON (NFO)", session:"afternoon", triggerCandle:"13:00", entry:"13:05", exit:"15:15", pnl:1450, winRate:76, trades:21, status:"running" },
-  { name:"AMBER Morning ORB", stock:"AMBER (NFO)", session:"morning", triggerCandle:"09:15", entry:"09:20", exit:"11:30", pnl:320, winRate:65, trades:12, status:"completed" },
-  { name:"AMBER Afternoon ORB", stock:"AMBER (NFO)", session:"afternoon", triggerCandle:"13:00", entry:"13:05", exit:"15:15", pnl:-120, winRate:58, trades:9, status:"scheduled" },
+  {
+    id:1, name:"DIXON Morning ORB", stock:"DIXON (NFO)", session:"morning",
+    triggerCandle:"09:15", entry:"09:20", exit:"11:30",
+    pnl:890, winRate:72, trades:18, status:"completed",
+    lastRunTime:"09:20", lastRunPnl:890, lastRunTrades:4,
+    lastRunEntry:"₹14,870", lastRunORBH:"14,980", lastRunORBL:"14,820",
+    lastRunNote:"CE position entered at 09:35. Target hit at 10:12. Exit ₹14,990."
+  },
+  {
+    id:2, name:"DIXON Afternoon ORB", stock:"DIXON (NFO)", session:"afternoon",
+    triggerCandle:"13:00", entry:"13:05", exit:"15:15",
+    pnl:1450, winRate:76, trades:21, status:"running",
+    lastRunTime:"13:05", lastRunPnl:1450, lastRunTrades:2,
+    lastRunEntry:"₹15,020", lastRunORBH:"15,060", lastRunORBL:"14,940",
+    lastRunNote:"CE & PE both triggered. CE at +₹1,450. PE still open, trailing SL active."
+  },
+  {
+    id:3, name:"AMBER Morning ORB", stock:"AMBER (NFO)", session:"morning",
+    triggerCandle:"09:15", entry:"09:20", exit:"11:30",
+    pnl:320, winRate:65, trades:12, status:"completed",
+    lastRunTime:"09:20", lastRunPnl:320, lastRunTrades:3,
+    lastRunEntry:"₹6,420", lastRunORBH:"6,480", lastRunORBL:"6,360",
+    lastRunNote:"ORB breakout detected at 09:42. PE trigger didn't fire. CE target partial fill."
+  },
+  {
+    id:4, name:"AMBER Afternoon ORB", stock:"AMBER (NFO)", session:"afternoon",
+    triggerCandle:"13:00", entry:"13:05", exit:"15:15",
+    pnl:-120, winRate:58, trades:9, status:"scheduled",
+    lastRunTime:"13:05 (yesterday)", lastRunPnl:-120, lastRunTrades:2,
+    lastRunEntry:"₹6,510", lastRunORBH:"6,540", lastRunORBL:"6,470",
+    lastRunNote:"Both CE and PE SL hit. Choppy session. No clear ORB direction."
+  },
 ];
 
-const SCHEDULE_ROWS = [];
-const days = ["Mon","Tue","Wed","Thu","Fri"];
-STRATEGIES.forEach(s => {
-  days.forEach(d => {
-    SCHEDULE_ROWS.push({ ...s, day: d });
-  });
-});
-
-const TRADES = [
-  { id:1, date:"Mon 16 Mar", symbol:"DIXON 15000 CE", session:"afternoon", type:"CE", entry:142, exit:180, qty:50, pnl:1900, status:"completed" },
-  { id:2, date:"Mon 16 Mar", symbol:"DIXON 14800 PE", session:"morning",   type:"PE", entry:88,  exit:72,  qty:50, pnl:-800, status:"sl_hit" },
-  { id:3, date:"Fri 13 Mar", symbol:"DIXON 14900 CE", session:"afternoon", type:"CE", entry:110, exit:148, qty:50, pnl:1900, status:"completed" },
-  { id:4, date:"Fri 13 Mar", symbol:"AMBER 6500 CE",  session:"morning",   type:"CE", entry:65,  exit:85,  qty:75, pnl:1500, status:"completed" },
-  { id:5, date:"Thu 12 Mar", symbol:"DIXON 15100 CE", session:"afternoon", type:"CE", entry:130, exit:115, qty:50, pnl:-750, status:"sl_hit" },
-  { id:6, date:"Thu 12 Mar", symbol:"DIXON 15000 PE", session:"morning",   type:"PE", entry:92,  exit:118, qty:50, pnl:1300, status:"completed" },
-  { id:7, date:"Wed 11 Mar", symbol:"AMBER 6400 PE",  session:"afternoon", type:"PE", entry:58,  exit:80,  qty:75, pnl:1650, status:"completed" },
-];
-
-const LOGS = [
-  { t:"13:12:44", level:"TRADE", msg:"DIXON Afternoon ORB — CE ENTRY at ₹142. Qty:50. ORB High:14990 Trigger:15000", type:"success" },
-  { t:"13:10:02", level:"INFO",  msg:"ORB calculated: High=14980, Low=14850. CE Trigger=14990, PE Trigger=14840", type:"info" },
-  { t:"13:05:00", level:"INFO",  msg:"Afternoon ORB started. Fetching 13:00 candle for DIXON...", type:"info" },
+let LOGS = [
+  { t:"13:12:44", level:"TRADE", msg:"DIXON Afternoon — CE ENTRY ₹142. Qty:50. ORB High:14990 Trigger:15000", type:"success" },
+  { t:"13:10:02", level:"INFO",  msg:"ORB calculated: High=14980 Low=14850 CE Trigger=14990 PE Trigger=14840", type:"info" },
+  { t:"13:05:00", level:"INFO",  msg:"Afternoon ORB started. Fetching 13:00 candle for DIXON…", type:"info" },
   { t:"13:00:00", level:"INFO",  msg:"APScheduler: dixon_afternoon_bot TRIGGERED (cron: mon-fri 13:00)", type:"info" },
-  { t:"11:28:14", level:"TRADE", msg:"DIXON Morning ORB — PE EXIT at ₹72. SL hit. PnL: -₹800", type:"warn" },
-  { t:"09:35:22", level:"TRADE", msg:"DIXON Morning ORB — PE ENTRY at ₹88. Qty:50. ORB Low:14820 Trigger:14810", type:"success" },
-  { t:"09:20:01", level:"INFO",  msg:"Morning ORB started. Fetching 09:15 candle for DIXON...", type:"info" },
+  { t:"11:28:14", level:"TRADE", msg:"DIXON Morning — PE EXIT ₹72. SL hit. PnL: -₹800", type:"warn" },
+  { t:"09:35:22", level:"TRADE", msg:"DIXON Morning — PE ENTRY ₹88. Qty:50. ORB Low:14820 Trigger:14810", type:"success" },
+  { t:"09:20:01", level:"INFO",  msg:"Morning ORB started. Fetching 09:15 candle for DIXON…", type:"info" },
   { t:"09:15:00", level:"INFO",  msg:"APScheduler: dixon_morning_bot TRIGGERED (cron: mon-fri 09:20)", type:"info" },
-  { t:"09:00:00", level:"INFO",  msg:"System startup complete. Broker session active. 4 strategies scheduled.", type:"success" },
-  { t:"08:59:44", level:"INFO",  msg:"PostgreSQL connection OK. Heartbeat started (10s interval).", type:"info" },
-  { t:"08:59:30", level:"INFO",  msg:"FastAPI server started on :8000. APScheduler initialised.", type:"success" },
+  { t:"09:00:00", level:"INFO",  msg:"System startup OK. Broker session active. 4 strategies queued.", type:"success" },
+  { t:"08:59:44", level:"INFO",  msg:"PostgreSQL OK. Heartbeat started (10s).", type:"info" },
+  { t:"08:59:30", level:"INFO",  msg:"FastAPI :8000 started. APScheduler initialised.", type:"success" },
 ];
 
-// ─── CLOCK & COUNTDOWN ────────────────────────────────────────────────────────
+// ─── CLOCK ───────────────────────────────────────────────────────────
 function updateClock() {
   const now = new Date();
   const hh = String(now.getHours()).padStart(2,'0');
   const mm = String(now.getMinutes()).padStart(2,'0');
   const ss = String(now.getSeconds()).padStart(2,'0');
   document.getElementById('liveClock').textContent = `${hh}:${mm}:${ss}`;
-  document.getElementById('liveDate').textContent = now.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'short',year:'numeric'});
-
-  // Countdown to next 13:00 or 09:20
-  const next1 = new Date(now); next1.setHours(13,0,0,0);
-  const next2 = new Date(now); next2.setHours(9,20,0,0);
-  let target = null, label = '';
-  if (now < next2) { target = next2; label = "DIXON Morning ORB — Today 09:20"; }
-  else if (now < next1) { target = next1; label = "DIXON Afternoon ORB — Today 13:00"; }
+  document.getElementById('liveDate').textContent = now.toLocaleDateString('en-IN',{
+    weekday:'short', day:'numeric', month:'short', year:'numeric'
+  });
+  // Countdown
+  const next1 = new Date(now); next1.setHours(9,20,0,0);
+  const next2 = new Date(now); next2.setHours(13,0,0,0);
+  let target, label;
+  if (now < next1) { target = next1; label = "DIXON Morning ORB · 09:20"; }
+  else if (now < next2) { target = next2; label = "DIXON Afternoon ORB · 13:00"; }
   else {
-    const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate()+1);
-    tomorrow.setHours(9,20,0,0); target = tomorrow;
-    label = "DIXON Morning ORB — Tomorrow 09:20";
+    const tom = new Date(now); tom.setDate(tom.getDate()+1); tom.setHours(9,20,0,0);
+    target = tom; label = "DIXON Morning ORB · Tomorrow 09:20";
   }
   document.getElementById('nextRunLabel').textContent = label;
   const diff = Math.max(0, target - now);
@@ -703,251 +1312,315 @@ function updateClock() {
   const cs = String(Math.floor((diff%60000)/1000)).padStart(2,'0');
   document.getElementById('countdown').textContent = `${ch}:${cm}:${cs}`;
 }
-setInterval(updateClock,1000);
+setInterval(updateClock, 1000);
 updateClock();
 
-// ─── WEEK GRID ─────────────────────────────────────────────────────────────────
+// ─── WEEK GRID ───────────────────────────────────────────────────────
 function buildWeekGrid() {
   const now = new Date();
-  const todayDay = now.getDay(); // 0=Sun ... 6=Sat
-  const dayNames = ['Mon','Tue','Wed','Thu','Fri'];
-  const fullNames = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+  const todayDay = now.getDay();
+  const names = ['Mon','Tue','Wed','Thu','Fri'];
+  const full = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
   const grid = document.getElementById('weekGrid');
-  dayNames.forEach((d,i) => {
-    const jsDay = i+1; // 1=Mon
-    const isToday = todayDay === jsDay;
+  names.forEach((d,i) => {
+    const isToday = todayDay === i+1;
     const card = document.createElement('div');
-    card.className = 'day-card' + (isToday?' today':'');
+    card.className = 'day-card' + (isToday ? ' today' : '');
     card.innerHTML = `
-      <div class="day-name">${isToday?'🟢 ':''} ${fullNames[i]}</div>
-      <div class="session-slot morning-slot">
-        <div class="slot-time">09:20 — 11:30</div>
-        <div class="slot-name">🌅 Morning ORB</div>
-      </div>
-      <div class="session-slot afternoon-slot">
-        <div class="slot-time">13:05 — 15:15</div>
-        <div class="slot-name">🌆 Afternoon ORB</div>
-      </div>
+      <div class="day-name">${isToday ? '● ' : ''}${d}</div>
+      <div class="sess-slot m"><div class="sess-time">09:20</div><div class="sess-name">ORB</div></div>
+      <div class="sess-slot a"><div class="sess-time">13:05</div><div class="sess-name">ORB</div></div>
     `;
     grid.appendChild(card);
   });
 }
 buildWeekGrid();
 
-// ─── SCHEDULE TABLE ────────────────────────────────────────────────────────────
-function buildSchedule() {
-  const tbody = document.getElementById('scheduleBody');
-  const now = new Date();
-  const todayIdx = now.getDay()-1; // 0=Mon
-  const days = ["Mon","Tue","Wed","Thu","Fri"];
-  STRATEGIES.forEach(s => {
-    const tr = document.createElement('tr');
-    const dayPills = days.map((d,i) =>
-      `<span class="day-pill ${i===todayIdx?'today':'active-day'}">${d}</span>`
-    ).join('');
-    const statusMap = {
-      running:'<span class="status-badge running"><span class="dot"></span>Running</span>',
-      scheduled:'<span class="status-badge scheduled"><span class="dot"></span>Scheduled</span>',
-      completed:'<span class="status-badge completed"><span class="dot"></span>Completed</span>',
-      failed:'<span class="status-badge failed"><span class="dot"></span>Failed</span>',
-    };
-    tr.innerHTML = `
-      <td><strong>${s.name}</strong></td>
-      <td><code style="background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:12px">${s.stock}</code></td>
-      <td><span class="session-badge ${s.session}">${s.session==='morning'?'🌅 Morning':'🌆 Afternoon'}</span></td>
-      <td><strong>${s.triggerCandle}</strong></td>
-      <td style="color:var(--accent-red)">${s.exit}</td>
-      <td><div class="day-pills">${dayPills}</div></td>
-      <td>${statusMap[s.status]||''}</td>
-      <td><label class="toggle"><input type="checkbox" ${s.status!=='failed'?'checked':''}/><span class="toggle-slider"></span></label></td>
-    `;
-    tbody.appendChild(tr);
-  });
-  // Week label
-  const d = new Date();
-  const mon = new Date(d); mon.setDate(d.getDate()-d.getDay()+1);
-  const fri = new Date(mon); fri.setDate(mon.getDate()+4);
-  document.getElementById('weekRangeLabel').textContent =
-    `Week: ${mon.toLocaleDateString('en-IN',{day:'numeric',month:'short'})} — ${fri.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}`;
-}
-buildSchedule();
+// ─── PNL CHART ───────────────────────────────────────────────────────
+function buildChart() {
+  const canvas = document.getElementById('pnlChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.parentElement.clientWidth - 32;
+  const h = 120;
+  canvas.width = w; canvas.height = h;
+  const data = [1200, -300, 2100, 800, 2340];
+  const labels = ['Mon','Tue','Wed','Thu','Fri'];
+  const maxAbs = Math.max(...data.map(Math.abs)) * 1.2;
+  const mid = h / 2;
 
-// ─── STRATEGIES ────────────────────────────────────────────────────────────────
+  ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle = '#1e2d3d'; ctx.lineWidth = 1; ctx.setLineDash([3,4]);
+  ctx.beginPath(); ctx.moveTo(0,mid); ctx.lineTo(w,mid); ctx.stroke();
+  ctx.setLineDash([]);
+
+  const bw = (w - 40) / (data.length * 2 + 1);
+  data.forEach((v,i) => {
+    const x = 20 + bw * 0.5 + i * (bw * 2 + bw * 0.3);
+    const barH = (Math.abs(v) / maxAbs) * (mid - 14);
+    const y = v >= 0 ? mid - barH : mid;
+    const grad = ctx.createLinearGradient(0,y,0,y+barH);
+    if (v >= 0) {
+      grad.addColorStop(0,'#00d4aa');
+      grad.addColorStop(1,'rgba(0,212,170,.2)');
+    } else {
+      grad.addColorStop(0,'rgba(255,77,106,.2)');
+      grad.addColorStop(1,'#ff4d6a');
+    }
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x, y, bw * 1.6, barH, 3);
+    else ctx.rect(x, y, bw * 1.6, barH);
+    ctx.fill();
+
+    ctx.fillStyle = '#3a5570';
+    ctx.font = `10px JetBrains Mono, monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText(labels[i], x + bw * 0.8, h - 2);
+
+    ctx.fillStyle = v >= 0 ? '#00d4aa' : '#ff4d6a';
+    ctx.font = `9px JetBrains Mono, monospace`;
+    const yText = v >= 0 ? y - 5 : y + barH + 11;
+    ctx.fillText((v >= 0 ? '+' : '') + (Math.abs(v)/1000).toFixed(1)+'k', x + bw * 0.8, yText);
+  });
+}
+setTimeout(buildChart, 200);
+window.addEventListener('resize', () => setTimeout(buildChart, 100));
+
+// ─── STRATEGIES ──────────────────────────────────────────────────────
 function buildStrategies() {
   const grid = document.getElementById('strategyGrid');
+  grid.innerHTML = '';
   STRATEGIES.forEach(s => {
     const card = document.createElement('div');
-    card.className = 'strategy-card';
-    const statusBadge = s.status==='running'
-      ? '<span class="status-badge running"><span class="dot"></span>Running</span>'
-      : s.status==='scheduled'
-      ? '<span class="status-badge scheduled"><span class="dot"></span>Scheduled</span>'
-      : '<span class="status-badge completed">✓ Completed</span>';
+    card.className = `strategy-card ${s.session === 'morning' ? 'morning-card' : 'afternoon-card'}`;
+    card.style.cursor = 'pointer';
+    const statusBadge =
+      s.status === 'running' ? '<span class="badge running"><span class="dot"></span>Running</span>' :
+      s.status === 'scheduled' ? '<span class="badge scheduled"><span class="dot"></span>Scheduled</span>' :
+      s.status === 'completed' ? '<span class="badge completed">✓ Done</span>' :
+      '<span class="badge failed">✕ Failed</span>';
+    const sessBadge = s.session === 'morning'
+      ? '<span class="badge morning">🌅 Morning</span>'
+      : '<span class="badge afternoon">🌆 Afternoon</span>';
+
     card.innerHTML = `
-      <div class="s-header">
+      <div class="sc-header">
         <div>
-          <div class="s-name">${s.name}</div>
-          <div class="s-stock">${s.stock}</div>
-        </div>
-        ${statusBadge}
-      </div>
-      <div class="s-meta">
-        <span class="session-badge ${s.session}">${s.session==='morning'?'🌅 Morning':'🌆 Afternoon'}</span>
-        <span class="s-tag">ORB Strategy</span>
-        <span class="s-tag">Mon–Fri</span>
-        <span class="s-tag">Win ${s.winRate}%</span>
-      </div>
-      <hr class="s-divider"/>
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Today's PnL</div>
-          <div class="s-pnl ${s.pnl>=0?'pos':'neg'}">${s.pnl>=0?'+':''}₹${Math.abs(s.pnl).toLocaleString()}</div>
+          <div class="sc-name">${s.name}</div>
+          <div class="sc-stock">${s.stock}</div>
         </div>
         <div style="text-align:right">
-          <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Trades This Month</div>
-          <div style="font-size:20px;font-weight:700">${s.trades}</div>
+          <div class="sc-pnl-label">Today PnL</div>
+          <div class="sc-pnl ${s.pnl >= 0 ? 'pos' : 'neg'}">${s.pnl >= 0 ? '+' : ''}₹${Math.abs(s.pnl).toLocaleString()}</div>
         </div>
       </div>
-      <hr class="s-divider"/>
-      <div class="s-times">
-        <div class="s-time-item"><div class="t-label">Candle</div><div class="t-val">${s.triggerCandle}</div></div>
-        <div class="s-time-item"><div class="t-label">Entry After</div><div class="t-val">${s.entry}</div></div>
-        <div class="s-time-item"><div class="t-label">Hard Exit</div><div class="t-val" style="color:var(--accent-red)">${s.exit}</div></div>
+      <div class="sc-tags">
+        ${sessBadge}
+        ${statusBadge}
+        <span class="sc-tag">Win ${s.winRate}%</span>
+        <span class="sc-tag">${s.trades} trades</span>
+      </div>
+      <div class="win-bar-wrap">
+        <div class="win-bar-label">
+          <span style="font-family:var(--mono);font-size:10px;color:var(--text-muted)">Win Rate</span>
+          <span style="font-family:var(--mono);font-size:10px;color:var(--accent)">${s.winRate}%</span>
+        </div>
+        <div class="win-bar-bg">
+          <div class="win-bar-fill" style="width:${s.winRate}%"></div>
+        </div>
+      </div>
+      <hr class="sc-divider"/>
+      <div class="sc-times">
+        <div class="sc-time-item">
+          <div class="sct-label">Candle</div>
+          <div class="sct-val">${s.triggerCandle}</div>
+        </div>
+        <div class="sc-time-item">
+          <div class="sct-label">Entry</div>
+          <div class="sct-val">${s.entry}</div>
+        </div>
+        <div class="sc-time-item">
+          <div class="sct-label">Exit</div>
+          <div class="sct-val exit-time">${s.exit}</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;font-family:var(--mono);font-size:10px;color:var(--text-dim);text-align:center;letter-spacing:.05em">
+        TAP FOR RUN DETAILS →
       </div>
     `;
+    card.addEventListener('click', () => openRunModal(s));
     grid.appendChild(card);
   });
 }
 buildStrategies();
 
-// ─── TRADES TABLE ──────────────────────────────────────────────────────────────
-function buildTrades() {
-  const tbody = document.getElementById('tradesBody');
-  TRADES.forEach(t => {
-    const tr = document.createElement('tr');
-    const pnlColor = t.pnl>=0?'#3fb950':'#ff7b72';
-    const statusBadge = t.status==='completed'
-      ? '<span class="status-badge completed">✓ Profit</span>'
-      : '<span class="status-badge failed">⚡ SL Hit</span>';
-    tr.innerHTML = `
-      <td style="color:var(--text-muted)">#${t.id}</td>
-      <td>${t.date}</td>
-      <td><strong>${t.symbol}</strong></td>
-      <td><span class="session-badge ${t.session}">${t.session==='morning'?'🌅 Morning':'🌆 Afternoon'}</span></td>
-      <td style="color:${t.type==='CE'?'#3fb950':'#ffa657'};font-weight:700">${t.type}</td>
-      <td>₹${t.entry}</td>
-      <td>₹${t.exit}</td>
-      <td>${t.qty}</td>
-      <td style="color:${pnlColor};font-weight:700">${t.pnl>=0?'+':''}₹${Math.abs(t.pnl).toLocaleString()}</td>
-      <td>${statusBadge}</td>
-    `;
-    tbody.appendChild(tr);
-  });
+// ─── RUN MODAL ───────────────────────────────────────────────────────
+function openRunModal(s) {
+  document.getElementById('modalTitle').textContent = `${s.name} — Last Run`;
+  const pnlColor = s.lastRunPnl >= 0 ? 'pos' : 'neg';
+  document.getElementById('modalBody').innerHTML = `
+    <div style="margin-bottom:12px">
+      <span class="badge ${s.session === 'morning' ? 'morning' : 'afternoon'}">${s.session === 'morning' ? '🌅 Morning' : '🌆 Afternoon'}</span>
+      &nbsp;
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text-muted)">Run: ${s.lastRunTime}</span>
+    </div>
+    <div class="run-detail-grid">
+      <div class="rd-item"><div class="rd-label">PnL</div><div class="rd-val ${pnlColor}">${s.lastRunPnl >= 0 ? '+' : ''}₹${Math.abs(s.lastRunPnl).toLocaleString()}</div></div>
+      <div class="rd-item"><div class="rd-label">Trades</div><div class="rd-val">${s.lastRunTrades}</div></div>
+      <div class="rd-item"><div class="rd-label">Win Rate</div><div class="rd-val" style="color:var(--purple)">${s.winRate}%</div></div>
+      <div class="rd-item"><div class="rd-label">ORB High</div><div class="rd-val" style="color:var(--blue)">₹${s.lastRunORBH}</div></div>
+      <div class="rd-item"><div class="rd-label">ORB Low</div><div class="rd-val" style="color:var(--orange)">₹${s.lastRunORBL}</div></div>
+      <div class="rd-item"><div class="rd-label">Entry At</div><div class="rd-val">${s.lastRunEntry}</div></div>
+    </div>
+    <div style="font-family:var(--mono);font-size:10px;color:var(--text-muted);letter-spacing:.05em;margin-bottom:8px;text-transform:uppercase">Run Notes</div>
+    <div class="run-log-mini">
+      <div class="log-line success">
+        <span class="log-time">${s.triggerCandle}</span>
+        <span class="log-level">[START]</span>
+        <span class="log-msg">ORB candle fetched. High=${s.lastRunORBH} Low=${s.lastRunORBL}</span>
+      </div>
+      <div class="log-line info">
+        <span class="log-time">${s.entry}</span>
+        <span class="log-level">[ENTRY]</span>
+        <span class="log-msg">Trigger confirmed. Position initiated at ${s.lastRunEntry}</span>
+      </div>
+      <div class="log-line ${s.lastRunPnl >= 0 ? 'success' : 'warn'}">
+        <span class="log-time">${s.exit}</span>
+        <span class="log-level">[EXIT]</span>
+        <span class="log-msg">${s.lastRunNote}</span>
+      </div>
+    </div>
+  `;
+  document.getElementById('runModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
 }
-buildTrades();
 
-// ─── LOGS ──────────────────────────────────────────────────────────────────────
+function closeModal() {
+  document.getElementById('runModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+document.getElementById('runModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// ─── LOGS ────────────────────────────────────────────────────────────
+let logFilter = 'ALL';
+
 function buildLogs() {
   const container = document.getElementById('logsContainer');
   container.innerHTML = '';
-  LOGS.forEach(l => {
+  const filtered = logFilter === 'ALL' ? LOGS : LOGS.filter(l => l.level === logFilter);
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="log-line info"><span class="log-time">--:--:--</span><span class="log-level">[INFO]</span><span class="log-msg">No logs for filter: ' + logFilter + '</span></div>';
+    return;
+  }
+  filtered.forEach(l => {
     const div = document.createElement('div');
     div.className = `log-line ${l.type}`;
     div.dataset.level = l.level;
     div.innerHTML = `<span class="log-time">${l.t}</span><span class="log-level">[${l.level}]</span><span class="log-msg">${l.msg}</span>`;
     container.appendChild(div);
   });
+
+  // Stats
+  const infoC = LOGS.filter(l=>l.type==='info').length;
+  const successC = LOGS.filter(l=>l.type==='success').length;
+  const warnC = LOGS.filter(l=>l.type==='warn').length;
+  const errC = LOGS.filter(l=>l.type==='error').length;
+  document.getElementById('logStats').innerHTML = `
+    <div class="log-stat ls-info"><div class="ls-dot"></div><span class="ls-count">${infoC}</span><span class="ls-label">info</span></div>
+    <div class="log-stat ls-success"><div class="ls-dot"></div><span class="ls-count">${successC}</span><span class="ls-label">trade</span></div>
+    <div class="log-stat ls-warn"><div class="ls-dot"></div><span class="ls-count">${warnC}</span><span class="ls-label">warn</span></div>
+    <div class="log-stat ls-error"><div class="ls-dot"></div><span class="ls-count">${errC}</span><span class="ls-label">error</span></div>
+  `;
 }
 buildLogs();
-let logFilter = 'ALL';
-function filterLog(f) {
+
+function filterLog(f, btn) {
   logFilter = f;
-  document.querySelectorAll('#logsContainer .log-line').forEach(el => {
-    el.style.display = (f==='ALL' || el.dataset.level===f) ? 'flex' : 'none';
-  });
+  document.querySelectorAll('.log-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  buildLogs();
 }
-function clearLogs() { document.getElementById('logsContainer').innerHTML = '<div class="log-line info"><span class="log-time">--:--:--</span><span class="log-level">[INFO]</span><span class="log-msg">Logs cleared.</span></div>'; }
 
-// ─── PNL CHART ─────────────────────────────────────────────────────────────────
-function buildChart() {
-  const canvas = document.getElementById('pnlChart');
-  const ctx = canvas.getContext('2d');
-  const w = canvas.offsetWidth; const h = 140;
-  canvas.width = w; canvas.height = h;
-  const data = [1200, -300, 2100, 800, 2340];
-  const labels = ['Mon','Tue','Wed','Thu','Fri'];
-  const max = Math.max(...data.map(Math.abs)) * 1.2;
-  const mid = h/2;
-  ctx.clearRect(0,0,w,h);
-  // Zero line
-  ctx.strokeStyle = '#30363d'; ctx.lineWidth = 1;
-  ctx.setLineDash([4,4]);
-  ctx.beginPath(); ctx.moveTo(0,mid); ctx.lineTo(w,mid); ctx.stroke();
-  ctx.setLineDash([]);
-  // Bars
-  const bw = (w-60)/(data.length*2+1);
-  data.forEach((v,i) => {
-    const x = 30 + bw + i*(bw*2+bw*0.4);
-    const barH = Math.abs(v)/max * (h/2 - 16);
-    const y = v>=0 ? mid-barH : mid;
-    const grad = ctx.createLinearGradient(0, y, 0, y+barH);
-    if(v>=0){ grad.addColorStop(0,'#3fb950'); grad.addColorStop(1,'rgba(63,185,80,.3)'); }
-    else { grad.addColorStop(0,'rgba(255,123,114,.3)'); grad.addColorStop(1,'#ff7b72'); }
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.roundRect(x, y, bw*1.8, barH, 3);
-    ctx.fill();
-    // Label
-    ctx.fillStyle = '#8b949e'; ctx.font = '11px Segoe UI'; ctx.textAlign = 'center';
-    ctx.fillText(labels[i], x+bw*0.9, h-4);
-    ctx.fillStyle = v>=0?'#3fb950':'#ff7b72'; ctx.font = '10px Segoe UI';
-    const yText = v>=0 ? y-5 : y+barH+12;
-    ctx.fillText((v>=0?'+':'')+v.toLocaleString(), x+bw*0.9, yText);
-  });
+function clearLogs() {
+  LOGS = [{ t: new Date().toTimeString().slice(0,8), level:'INFO', msg:'Logs cleared by user.', type:'info' }];
+  buildLogs();
 }
-setTimeout(buildChart, 100);
 
-// ─── LTP SIMULATION ───────────────────────────────────────────────────────────
+// ─── LTP SIM ─────────────────────────────────────────────────────────
 function simPrices() {
-  const ltp1 = 158 + (Math.random()-0.5)*10; const pnl1 = (ltp1-142)*50;
-  const ltp2 = 112 + (Math.random()-0.5)*8;  const pnl2 = (ltp2-98)*50;
-  document.getElementById('ltp1').textContent = '₹'+ltp1.toFixed(0);
-  document.getElementById('ltp2').textContent = '₹'+ltp2.toFixed(0);
-  document.getElementById('pnl1').textContent = (pnl1>=0?'+':'')+' ₹'+Math.abs(pnl1).toFixed(0);
-  document.getElementById('pnl1').style.color = pnl1>=0?'#3fb950':'#ff7b72';
-  document.getElementById('pnl2').textContent = (pnl2>=0?'+':'')+' ₹'+Math.abs(pnl2).toFixed(0);
-  document.getElementById('pnl2').style.color = pnl2>=0?'#3fb950':'#ff7b72';
+  const ltp1 = 158 + (Math.random()-0.5)*10;
+  const pnl1 = (ltp1-142)*50;
+  const ltp2 = 112 + (Math.random()-0.5)*8;
+  const pnl2 = (ltp2-98)*50;
+  const e1 = document.getElementById('ltp1');
+  const p1 = document.getElementById('pnl1');
+  const e2 = document.getElementById('ltp2');
+  const p2 = document.getElementById('pnl2');
+  if (e1) e1.textContent = '₹'+ltp1.toFixed(0);
+  if (p1) { p1.textContent = (pnl1>=0?'+':'')+' ₹'+Math.abs(pnl1).toFixed(0); p1.style.color = pnl1>=0?'var(--accent)':'var(--red)'; }
+  if (e2) e2.textContent = '₹'+ltp2.toFixed(0);
+  if (p2) { p2.textContent = (pnl2>=0?'+':'')+' ₹'+Math.abs(pnl2).toFixed(0); p2.style.color = pnl2>=0?'var(--accent)':'var(--red)'; }
 }
 setInterval(simPrices, 2000);
 
-// ─── NAV ──────────────────────────────────────────────────────────────────────
-function showPage(id, el) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
-  document.getElementById('page-'+id).classList.add('active');
-  el.classList.add('active');
-}
-
-function emergencyStop() {
-  if(confirm('🚨 Emergency Stop: Close ALL open positions NOW?')) {
-    alert('✅ Emergency stop executed. All positions closed via market order.');
-  }
-}
-
-// ─── AUTO LOG UPDATES ─────────────────────────────────────────────────────────
+// ─── AUTO LOG ────────────────────────────────────────────────────────
+const AUTO_MSGS = [
+  {level:'INFO', msg:'Heartbeat OK — broker session alive.', type:'info'},
+  {level:'INFO', msg:'Monitoring DIXON CE — trailing SL active.', type:'info'},
+  {level:'TRADE', msg:'Trailing SL updated: DIXON CE new SL ₹152', type:'success'},
+  {level:'INFO', msg:'Price scan complete. No new triggers.', type:'info'},
+  {level:'WARN', msg:'Slippage detected: 2pts on last fill.', type:'warn'},
+];
 setInterval(() => {
-  const msgs = [
-    {level:'INFO', msg:'Heartbeat OK — last seen 0s ago', type:'info'},
-    {level:'INFO', msg:'Monitoring DIXON CE — LTP updating...', type:'info'},
-    {level:'TRADE', msg:'Trailing SL updated: DIXON CE new SL ₹148', type:'success'},
-  ];
-  const m = msgs[Math.floor(Math.random()*msgs.length)];
+  const m = AUTO_MSGS[Math.floor(Math.random()*AUTO_MSGS.length)];
   const now = new Date();
   const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
   LOGS.unshift({t, level:m.level, msg:m.msg, type:m.type});
-  buildLogs();
-  if(logFilter!=='ALL') filterLog(logFilter);
+  if (LOGS.length > 80) LOGS = LOGS.slice(0,80);
+  if (document.getElementById('page-logs').classList.contains('active')) buildLogs();
 }, 5000);
+
+// ─── NAV ─────────────────────────────────────────────────────────────
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+
+  // Tab bar
+  document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+  // Desktop sidebar
+  document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+
+  // Activate clicked element
+  el.classList.add('active');
+  // Sync the other nav
+  const isTab = el.classList.contains('tab-item');
+  if (isTab) {
+    document.querySelectorAll('.sidebar-item').forEach(s => {
+      if (s.dataset.page === id) s.classList.add('active');
+    });
+  } else {
+    document.querySelectorAll('.tab-item').forEach(t => {
+      if (t.dataset.tab === id) t.classList.add('active');
+    });
+  }
+
+  if (id === 'logs') buildLogs();
+  if (id === 'dashboard') setTimeout(buildChart, 100);
+}
+
+// ─── EMERGENCY STOP ──────────────────────────────────────────────────
+function emergencyStop() {
+  if (confirm('🚨 Emergency Stop: Close ALL open positions NOW?')) {
+    const now = new Date();
+    const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    LOGS.unshift({t, level:'TRADE', msg:'🚨 EMERGENCY STOP triggered. All positions closed via market order.', type:'warn'});
+    alert('✅ Emergency stop executed. All positions closed.');
+  }
+}
 </script>
 </body>
 </html>
