@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Trading Bot Scheduler — POC Dashboard</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #21262d;
+    --border: #30363d;
+    --accent: #238636;
+    --accent-blue: #1f6feb;
+    --accent-orange: #d29922;
+    --accent-red: #da3633;
+    --accent-purple: #8957e5;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --morning: #1f6feb;
+    --afternoon: #d29922;
+    --running: #238636;
+    --idle: #30363d;
+    --success: #238636;
+    --failed: #da3633;
+    --scheduled: #8957e5;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* TOP NAV */
+  .navbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .navbar .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; }
+  .navbar .logo .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--running); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
+  .navbar .clock { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); }
+  .navbar .date-badge { font-size: 12px; color: var(--text-muted); }
+
+  /* LAYOUT */
+  .layout { display: flex; height: calc(100vh - 57px); }
+  .sidebar {
+    width: 200px; min-width: 200px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 16px 0;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .sidebar-item {
+    padding: 10px 20px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    display: flex; align-items: center; gap: 10px;
+    color: var(--text-muted);
+    transition: all 0.15s;
+    font-size: 13px;
+  }
+  .sidebar-item:hover { color: var(--text); background: var(--surface2); }
+  .sidebar-item.active { border-left-color: var(--accent-blue); color: var(--text); background: var(--surface2); }
+  .sidebar-item .icon { font-size: 16px; }
+  .main { flex: 1; overflow-y: auto; padding: 24px; }
+
+  /* PAGES */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* SECTION TITLE */
+  .section-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .section-sub { color: var(--text-muted); font-size: 13px; margin-bottom: 20px; }
+
+  /* STAT CARDS */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+  .stat-card .label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; }
+  .stat-card .value { font-size: 26px; font-weight: 700; }
+  .stat-card .sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .stat-card.green .value { color: #3fb950; }
+  .stat-card.red .value { color: var(--accent-red); }
+  .stat-card.blue .value { color: #79c0ff; }
+  .stat-card.orange .value { color: #ffa657; }
+
+  /* SCHEDULE GRID */
+  .schedule-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .week-label { font-size: 13px; color: var(--text-muted); }
+
+  .schedule-table { width: 100%; border-collapse: collapse; border-radius: 10px; overflow: hidden; }
+  .schedule-table th {
+    background: var(--surface2);
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    border-bottom: 1px solid var(--border);
+  }
+  .schedule-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  .schedule-table tr:last-child td { border-bottom: none; }
+  .schedule-table tr:hover td { background: rgba(255,255,255,.02); }
+  .schedule-table { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+
+  /* DAY PILLS */
+  .day-pills { display: flex; gap: 4px; flex-wrap: wrap; }
+  .day-pill {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+  .day-pill.active-day { background: rgba(31,111,235,.2); color: #79c0ff; border: 1px solid rgba(31,111,235,.4); }
+  .day-pill.today { background: rgba(35,134,54,.2); color: #3fb950; border: 1px solid rgba(35,134,54,.5); }
+
+  /* SESSION BADGE */
+  .session-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: 20px;
+    font-size: 12px; font-weight: 600;
+  }
+  .session-badge.morning { background: rgba(31,111,235,.15); color: #79c0ff; border: 1px solid rgba(31,111,235,.3); }
+  .session-badge.afternoon { background: rgba(210,153,34,.15); color: #ffa657; border: 1px solid rgba(210,153,34,.3); }
+
+  /* STATUS BADGE */
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: 20px;
+    font-size: 12px; font-weight: 600;
+  }
+  .status-badge.running { background: rgba(35,134,54,.2); color: #3fb950; border: 1px solid rgba(35,134,54,.4); }
+  .status-badge.scheduled { background: rgba(137,87,229,.2); color: #bc8cff; border: 1px solid rgba(137,87,229,.4); }
+  .status-badge.completed { background: rgba(56,56,56,.4); color: var(--text-muted); border: 1px solid var(--border); }
+  .status-badge.failed { background: rgba(218,54,51,.15); color: #ff7b72; border: 1px solid rgba(218,54,51,.3); }
+  .status-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .status-badge.running .dot { animation: pulse 1.2s infinite; }
+
+  /* TIMELINE */
+  .timeline { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 24px; }
+  .timeline-title { font-size: 14px; font-weight: 600; margin-bottom: 16px; color: var(--text-muted); }
+  .tl-track {
+    display: flex; align-items: center; gap: 0;
+    position: relative; padding: 8px 0;
+  }
+  .tl-bar {
+    height: 8px; border-radius: 4px;
+    position: relative;
+  }
+  .tl-labels { display: flex; justify-content: space-between; margin-top: 8px; }
+  .tl-label { font-size: 11px; color: var(--text-muted); }
+  .tl-events { display: flex; margin-top: 12px; flex-wrap: wrap; gap: 8px; }
+  .tl-event {
+    font-size: 11px; padding: 4px 10px; border-radius: 20px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .tl-event.morning { background: rgba(31,111,235,.15); color: #79c0ff; }
+  .tl-event.afternoon { background: rgba(210,153,34,.15); color: #ffa657; }
+  .tl-event.exit { background: rgba(218,54,51,.12); color: #ff7b72; }
+
+  /* STRATEGY CARDS */
+  .strategy-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; }
+  .strategy-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px;
+  }
+  .strategy-card .s-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .strategy-card .s-name { font-size: 15px; font-weight: 700; }
+  .strategy-card .s-stock { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .strategy-card .s-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .strategy-card .s-tag {
+    font-size: 11px; padding: 3px 8px; border-radius: 6px;
+    background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border);
+  }
+  .strategy-card .s-pnl { font-size: 22px; font-weight: 700; }
+  .strategy-card .s-pnl.pos { color: #3fb950; }
+  .strategy-card .s-pnl.neg { color: #ff7b72; }
+  .strategy-card .s-divider { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+  .strategy-card .s-times { display: flex; gap: 16px; }
+  .strategy-card .s-time-item { font-size: 12px; }
+  .strategy-card .s-time-item .t-label { color: var(--text-muted); margin-bottom: 2px; }
+  .strategy-card .s-time-item .t-val { font-weight: 600; font-size: 13px; }
+
+  /* TOGGLE SWITCH */
+  .toggle { position: relative; width: 36px; height: 20px; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute; cursor: pointer; inset: 0;
+    background: var(--border); border-radius: 20px; transition: .2s;
+  }
+  .toggle-slider:before {
+    content: ''; position: absolute;
+    height: 14px; width: 14px; left: 3px; bottom: 3px;
+    background: white; border-radius: 50%; transition: .2s;
+  }
+  .toggle input:checked + .toggle-slider { background: var(--accent); }
+  .toggle input:checked + .toggle-slider:before { transform: translateX(16px); }
+
+  /* BUTTONS */
+  .btn {
+    padding: 8px 16px; border-radius: 7px; border: none; cursor: pointer;
+    font-size: 13px; font-weight: 600; transition: all 0.15s;
+  }
+  .btn-green { background: var(--accent); color: white; }
+  .btn-green:hover { background: #2ea043; }
+  .btn-red { background: var(--accent-red); color: white; }
+  .btn-red:hover { background: #f85149; }
+  .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-outline:hover { background: var(--surface2); }
+  .btn-blue { background: var(--accent-blue); color: white; }
+  .btn-blue:hover { background: #388bfd; }
+
+  /* LOGS */
+  .log-container {
+    background: #0d1117; border: 1px solid var(--border); border-radius: 10px;
+    font-family: 'Consolas', 'Courier New', monospace; font-size: 12px;
+    max-height: 320px; overflow-y: auto; padding: 16px;
+  }
+  .log-line { padding: 3px 0; display: flex; gap: 10px; }
+  .log-line .log-time { color: #484f58; min-width: 80px; }
+  .log-line .log-level { min-width: 54px; font-weight: 700; }
+  .log-line.info .log-level { color: #79c0ff; }
+  .log-line.success .log-level { color: #3fb950; }
+  .log-line.warn .log-level { color: #d29922; }
+  .log-line.error .log-level { color: #ff7b72; }
+  .log-line .log-msg { color: var(--text-muted); }
+
+  /* WEEKDAY SCHEDULE VISUAL */
+  .week-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 24px; }
+  .day-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px;
+    text-align: center;
+  }
+  .day-card.today { border-color: rgba(35,134,54,.5); background: rgba(35,134,54,.05); }
+  .day-card .day-name { font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--text-muted); }
+  .day-card.today .day-name { color: #3fb950; }
+  .session-slot {
+    border-radius: 7px; padding: 8px 6px; margin-bottom: 6px; font-size: 11px; font-weight: 600;
+  }
+  .session-slot.morning-slot { background: rgba(31,111,235,.15); color: #79c0ff; border: 1px solid rgba(31,111,235,.2); }
+  .session-slot.afternoon-slot { background: rgba(210,153,34,.12); color: #ffa657; border: 1px solid rgba(210,153,34,.2); }
+  .session-slot .slot-time { font-size: 10px; opacity: .8; margin-bottom: 2px; }
+  .session-slot .slot-name { font-size: 11px; }
+
+  /* NOTIFICATIONS */
+  .notif-list { display: flex; flex-direction: column; gap: 8px; }
+  .notif {
+    display: flex; align-items: flex-start; gap: 12px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px;
+  }
+  .notif .notif-icon { font-size: 18px; }
+  .notif .notif-body .notif-title { font-size: 13px; font-weight: 600; }
+  .notif .notif-body .notif-msg { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .notif .notif-time { margin-left: auto; font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+
+  /* PNL CHART */
+  .chart-area { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .chart-title { font-size: 13px; font-weight: 600; margin-bottom: 16px; color: var(--text-muted); }
+  canvas { width: 100% !important; }
+
+  /* NEXT RUN BANNER */
+  .next-run-banner {
+    background: linear-gradient(135deg, rgba(31,111,235,.1), rgba(137,87,229,.1));
+    border: 1px solid rgba(31,111,235,.3);
+    border-radius: 10px; padding: 16px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .next-run-banner .nrb-left { display: flex; align-items: center; gap: 12px; }
+  .next-run-banner .nrb-icon { font-size: 28px; }
+  .next-run-banner .nrb-title { font-size: 14px; font-weight: 700; color: #79c0ff; }
+  .next-run-banner .nrb-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .next-run-banner .nrb-countdown { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; color: #ffa657; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* RESPONSIVE TABLE WRAPPER */
+  .table-wrap { overflow-x: auto; border-radius: 10px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <div class="logo">
+    <div class="dot"></div>
+    <span>⚡ TradingBot Scheduler</span>
+  </div>
+  <div style="text-align:center">
+    <div class="clock" id="liveClock">--:--:--</div>
+    <div class="date-badge" id="liveDate">Loading...</div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <span class="status-badge running"><span class="dot"></span>System Online</span>
+    <button class="btn btn-red" onclick="emergencyStop()">🚨 Emergency Stop</button>
+  </div>
+</nav>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-item active" onclick="showPage('dashboard',this)"><span class="icon">📊</span> Dashboard</div>
+    <div class="sidebar-item" onclick="showPage('schedule',this)"><span class="icon">📅</span> Schedule</div>
+    <div class="sidebar-item" onclick="showPage('strategies',this)"><span class="icon">🎯</span> Strategies</div>
+    <div class="sidebar-item" onclick="showPage('trades',this)"><span class="icon">💹</span> Trades</div>
+    <div class="sidebar-item" onclick="showPage('logs',this)"><span class="icon">📋</span> Logs</div>
+    <div class="sidebar-item" onclick="showPage('settings',this)"><span class="icon">⚙️</span> Settings</div>
+  </aside>
+
+  <main class="main">
+
+    <!-- ═══════════════ DASHBOARD PAGE ═══════════════ -->
+    <div id="page-dashboard" class="page active">
+      <div class="section-title">📊 Dashboard</div>
+      <div class="section-sub">Real-time overview — Mon–Fri Morning &amp; Afternoon sessions</div>
+
+      <!-- NEXT RUN BANNER -->
+      <div class="next-run-banner">
+        <div class="nrb-left">
+          <div class="nrb-icon">⏰</div>
+          <div>
+            <div class="nrb-title">Next Scheduled Run</div>
+            <div class="nrb-sub" id="nextRunLabel">DIXON Afternoon ORB — Today 13:00</div>
+          </div>
+        </div>
+        <div class="nrb-countdown" id="countdown">--:--:--</div>
+      </div>
+
+      <!-- STAT CARDS -->
+      <div class="stats-grid">
+        <div class="stat-card green">
+          <div class="label">Today's PnL</div>
+          <div class="value">₹2,340</div>
+          <div class="sub">↑ Morning +₹890 | Afternoon +₹1,450</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="label">Bots Active</div>
+          <div class="value">2</div>
+          <div class="sub">Morning ✓ | Afternoon ✓</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="label">Open Positions</div>
+          <div class="value">2</div>
+          <div class="sub">CE: 1 | PE: 1</div>
+        </div>
+        <div class="stat-card green">
+          <div class="label">Win Rate</div>
+          <div class="value">74%</div>
+          <div class="sub">This week: 11/15 trades</div>
+        </div>
+      </div>
+
+      <!-- WEEK GRID -->
+      <div class="section-title" style="font-size:14px;margin-bottom:12px">📅 This Week — Mon to Fri</div>
+      <div class="week-grid" id="weekGrid"></div>
+
+      <!-- TIMELINE + CHART -->
+      <div class="grid-2">
+        <div class="timeline">
+          <div class="timeline-title">⏱ Today's Session Timeline</div>
+          <div class="tl-track">
+            <div style="display:flex;width:100%;height:10px;border-radius:5px;overflow:hidden;gap:2px">
+              <div class="tl-bar" style="width:18%;background:#1a2332" title="09:00 Pre-market"></div>
+              <div class="tl-bar" style="width:14%;background:rgba(31,111,235,.4)" title="Morning ORB Active"></div>
+              <div class="tl-bar" style="width:26%;background:#1a2332" title="Mid-day idle"></div>
+              <div class="tl-bar" style="width:14%;background:rgba(210,153,34,.5)" title="Afternoon ORB Active"></div>
+              <div class="tl-bar" style="width:20%;background:#1a2332" title="Post-market"></div>
+              <div class="tl-bar" style="width:8%;background:var(--border)" title="After hours"></div>
+            </div>
+          </div>
+          <div class="tl-labels">
+            <span class="tl-label">09:15</span>
+            <span class="tl-label">10:30</span>
+            <span class="tl-label">12:00</span>
+            <span class="tl-label">13:00</span>
+            <span class="tl-label">15:15</span>
+            <span class="tl-label">15:30</span>
+          </div>
+          <div class="tl-events">
+            <span class="tl-event morning">🌅 Morning ORB: 09:20–11:00</span>
+            <span class="tl-event afternoon">🌆 Afternoon ORB: 13:05–15:15</span>
+            <span class="tl-event exit">🔴 Hard Exit: 15:15</span>
+          </div>
+        </div>
+
+        <div class="chart-area">
+          <div class="chart-title">📈 PnL Trend — This Week (₹)</div>
+          <canvas id="pnlChart" height="140"></canvas>
+        </div>
+      </div>
+
+      <!-- LIVE POSITIONS -->
+      <div class="section-title" style="font-size:14px;margin-bottom:12px">🔴 Live Positions</div>
+      <div class="table-wrap">
+        <table class="schedule-table">
+          <thead>
+            <tr>
+              <th>Symbol</th><th>Type</th><th>Entry</th><th>LTP</th><th>SL</th><th>Target</th><th>PnL</th><th>Session</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>DIXON 15000 CE</strong></td>
+              <td><span style="color:#3fb950;font-weight:700">CE</span></td>
+              <td>₹142</td>
+              <td id="ltp1">₹158</td>
+              <td>₹120</td>
+              <td>₹180</td>
+              <td id="pnl1" style="color:#3fb950;font-weight:700">+₹800</td>
+              <td><span class="session-badge afternoon">🌆 Afternoon</span></td>
+            </tr>
+            <tr>
+              <td><strong>DIXON 14900 PE</strong></td>
+              <td><span style="color:#ffa657;font-weight:700">PE</span></td>
+              <td>₹98</td>
+              <td id="ltp2">₹112</td>
+              <td>₹80</td>
+              <td>₹140</td>
+              <td id="pnl2" style="color:#3fb950;font-weight:700">+₹650</td>
+              <td><span class="session-badge morning">🌅 Morning</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══════════════ SCHEDULE PAGE ═══════════════ -->
+    <div id="page-schedule" class="page">
+      <div class="section-title">📅 Bot Schedule</div>
+      <div class="section-sub">All strategies run Mon–Fri. Each has a Morning and Afternoon session.</div>
+
+      <div class="schedule-header">
+        <span class="week-label" id="weekRangeLabel"></span>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline">← Prev Week</button>
+          <button class="btn btn-blue">Today</button>
+          <button class="btn btn-outline">Next Week →</button>
+        </div>
+      </div>
+
+      <div class="table-wrap" style="margin-bottom:24px">
+        <table class="schedule-table">
+          <thead>
+            <tr>
+              <th>Strategy</th>
+              <th>Stock / Symbol</th>
+              <th>Session</th>
+              <th>Trigger Time</th>
+              <th>Exit Time</th>
+              <th>Days</th>
+              <th>Status</th>
+              <th>Enabled</th>
+            </tr>
+          </thead>
+          <tbody id="scheduleBody"></tbody>
+        </table>
+      </div>
+
+      <!-- CRON REFERENCE -->
+      <div class="timeline" style="margin-bottom:0">
+        <div class="timeline-title">⚙️ APScheduler Cron Config (Auto-generated)</div>
+        <div class="log-container" style="max-height:200px">
+          <div class="log-line info"><span class="log-time">CONFIG</span><span class="log-level" style="color:#3fb950">CRON</span><span class="log-msg">scheduler.add_job(dixon_morning_bot, 'cron', day_of_week='mon-fri', hour=9, minute=20)</span></div>
+          <div class="log-line info"><span class="log-time">CONFIG</span><span class="log-level" style="color:#ffa657">CRON</span><span class="log-msg">scheduler.add_job(dixon_afternoon_bot, 'cron', day_of_week='mon-fri', hour=13, minute=0)</span></div>
+          <div class="log-line info"><span class="log-time">CONFIG</span><span class="log-level" style="color:#3fb950">CRON</span><span class="log-msg">scheduler.add_job(amber_morning_bot, 'cron', day_of_week='mon-fri', hour=9, minute=20)</span></div>
+          <div class="log-line info"><span class="log-time">CONFIG</span><span class="log-level" style="color:#ffa657">CRON</span><span class="log-msg">scheduler.add_job(amber_afternoon_bot, 'cron', day_of_week='mon-fri', hour=13, minute=0)</span></div>
+          <div class="log-line warn"><span class="log-time">NOTE</span><span class="log-level">SKIP</span><span class="log-msg">Bots auto-skip weekends (Sat/Sun) and NSE market holidays.</span></div>
+          <div class="log-line success"><span class="log-time">SYSTEM</span><span class="log-level">START</span><span class="log-msg">APScheduler started. Next jobs queued. Market hours: 09:15–15:30 IST.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ STRATEGIES PAGE ═══════════════ -->
+    <div id="page-strategies" class="page">
+      <div class="section-title">🎯 Strategies</div>
+      <div class="section-sub">All active strategies — Morning ORB (09:20) and Afternoon ORB (13:05)</div>
+      <div class="strategy-grid" id="strategyGrid"></div>
+    </div>
+
+    <!-- ═══════════════ TRADES PAGE ═══════════════ -->
+    <div id="page-trades" class="page">
+      <div class="section-title">💹 Trade History</div>
+      <div class="section-sub">All trades across Morning and Afternoon sessions this week</div>
+      <div class="table-wrap">
+        <table class="schedule-table" id="tradesTable">
+          <thead>
+            <tr>
+              <th>#</th><th>Date</th><th>Symbol</th><th>Session</th><th>Type</th>
+              <th>Entry</th><th>Exit</th><th>Qty</th><th>PnL</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="tradesBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══════════════ LOGS PAGE ═══════════════ -->
+    <div id="page-logs" class="page">
+      <div class="section-title">📋 System Logs</div>
+      <div class="section-sub">Live log stream from all bots</div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="btn btn-outline" onclick="filterLog('ALL')">All</button>
+        <button class="btn btn-outline" onclick="filterLog('INFO')">Info</button>
+        <button class="btn btn-outline" onclick="filterLog('TRADE')">Trade</button>
+        <button class="btn btn-outline" onclick="filterLog('WARN')">Warn</button>
+        <button class="btn btn-red" onclick="filterLog('ERROR')">Error</button>
+        <button class="btn btn-outline" style="margin-left:auto" onclick="clearLogs()">Clear</button>
+      </div>
+      <div class="log-container" id="logsContainer" style="max-height:500px"></div>
+    </div>
+
+    <!-- ═══════════════ SETTINGS PAGE ═══════════════ -->
+    <div id="page-settings" class="page">
+      <div class="section-title">⚙️ Settings</div>
+      <div class="section-sub">Configure schedule timings, risk parameters, and notifications</div>
+      <div class="grid-2">
+        <div class="strategy-card">
+          <div class="s-header">
+            <div>
+              <div class="s-name">⏰ Morning Session</div>
+              <div class="s-stock">ORB Trigger Time</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="color:var(--text-muted);font-size:13px">Candle Time (ORB Start)</span>
+              <input type="time" value="09:15" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px"/>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="color:var(--text-muted);font-size:13px">Trade Entry After</span>
+              <input type="time" value="09:20" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px"/>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="color:var(--text-muted);font-size:13px">Hard Exit Time</span>
+              <input type="time" value="11:30" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px"/>
+            </div>
+          </div>
+        </div>
+        <div class="strategy-card">
+          <div class="s-header">
+            <div>
+              <div class="s-name">🌆 Afternoon Session</div>
+              <div class="s-stock">ORB Trigger Time</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="color:var(--text-muted);font-size:13px">Candle Time (ORB Start)</span>
+              <input type="time" value="13:00" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px"/>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="color:var(--text-muted);font-size:13px">Trade Entry After</span>
+              <input type="time" value="13:05" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px"/>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="color:var(--text-muted);font-size:13px">Hard Exit Time</span>
+              <input type="time" value="15:15" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px"/>
+            </div>
+          </div>
+        </div>
+        <div class="strategy-card">
+          <div class="s-header">
+            <div>
+              <div class="s-name">🛡️ Risk Parameters</div>
+              <div class="s-stock">Global limits per session</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="color:var(--text-muted);font-size:13px">Max Loss Per Session (₹)</span>
+              <input type="number" value="5000" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:100px;text-align:right"/>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="color:var(--text-muted);font-size:13px">Max Profit Target (₹)</span>
+              <input type="number" value="10000" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:100px;text-align:right"/>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="color:var(--text-muted);font-size:13px">SL Buffer (points)</span>
+              <input type="number" value="10" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;width:100px;text-align:right"/>
+            </div>
+          </div>
+        </div>
+        <div class="strategy-card">
+          <div class="s-header">
+            <div>
+              <div class="s-name">🔔 Notifications</div>
+              <div class="s-stock">Alerts &amp; Webhooks</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="color:var(--text-muted);font-size:13px">Trade Entry Alert</span>
+              <label class="toggle"><input type="checkbox" checked/><span class="toggle-slider"></span></label>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="color:var(--text-muted);font-size:13px">SL Hit Alert</span>
+              <label class="toggle"><input type="checkbox" checked/><span class="toggle-slider"></span></label>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="color:var(--text-muted);font-size:13px">Daily PnL Summary</span>
+              <label class="toggle"><input type="checkbox" checked/><span class="toggle-slider"></span></label>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="color:var(--text-muted);font-size:13px">Telegram Webhook</span>
+              <label class="toggle"><input type="checkbox"/><span class="toggle-slider"></span></label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-green" style="margin-top:4px">💾 Save Settings</button>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ─── DATA ─────────────────────────────────────────────────────────────────────
+const STRATEGIES = [
+  { name:"DIXON Morning ORB", stock:"DIXON (NFO)", session:"morning", triggerCandle:"09:15", entry:"09:20", exit:"11:30", pnl:890, winRate:72, trades:18, status:"completed" },
+  { name:"DIXON Afternoon ORB", stock:"DIXON (NFO)", session:"afternoon", triggerCandle:"13:00", entry:"13:05", exit:"15:15", pnl:1450, winRate:76, trades:21, status:"running" },
+  { name:"AMBER Morning ORB", stock:"AMBER (NFO)", session:"morning", triggerCandle:"09:15", entry:"09:20", exit:"11:30", pnl:320, winRate:65, trades:12, status:"completed" },
+  { name:"AMBER Afternoon ORB", stock:"AMBER (NFO)", session:"afternoon", triggerCandle:"13:00", entry:"13:05", exit:"15:15", pnl:-120, winRate:58, trades:9, status:"scheduled" },
+];
+
+const SCHEDULE_ROWS = [];
+const days = ["Mon","Tue","Wed","Thu","Fri"];
+STRATEGIES.forEach(s => {
+  days.forEach(d => {
+    SCHEDULE_ROWS.push({ ...s, day: d });
+  });
+});
+
+const TRADES = [
+  { id:1, date:"Mon 16 Mar", symbol:"DIXON 15000 CE", session:"afternoon", type:"CE", entry:142, exit:180, qty:50, pnl:1900, status:"completed" },
+  { id:2, date:"Mon 16 Mar", symbol:"DIXON 14800 PE", session:"morning",   type:"PE", entry:88,  exit:72,  qty:50, pnl:-800, status:"sl_hit" },
+  { id:3, date:"Fri 13 Mar", symbol:"DIXON 14900 CE", session:"afternoon", type:"CE", entry:110, exit:148, qty:50, pnl:1900, status:"completed" },
+  { id:4, date:"Fri 13 Mar", symbol:"AMBER 6500 CE",  session:"morning",   type:"CE", entry:65,  exit:85,  qty:75, pnl:1500, status:"completed" },
+  { id:5, date:"Thu 12 Mar", symbol:"DIXON 15100 CE", session:"afternoon", type:"CE", entry:130, exit:115, qty:50, pnl:-750, status:"sl_hit" },
+  { id:6, date:"Thu 12 Mar", symbol:"DIXON 15000 PE", session:"morning",   type:"PE", entry:92,  exit:118, qty:50, pnl:1300, status:"completed" },
+  { id:7, date:"Wed 11 Mar", symbol:"AMBER 6400 PE",  session:"afternoon", type:"PE", entry:58,  exit:80,  qty:75, pnl:1650, status:"completed" },
+];
+
+const LOGS = [
+  { t:"13:12:44", level:"TRADE", msg:"DIXON Afternoon ORB — CE ENTRY at ₹142. Qty:50. ORB High:14990 Trigger:15000", type:"success" },
+  { t:"13:10:02", level:"INFO",  msg:"ORB calculated: High=14980, Low=14850. CE Trigger=14990, PE Trigger=14840", type:"info" },
+  { t:"13:05:00", level:"INFO",  msg:"Afternoon ORB started. Fetching 13:00 candle for DIXON...", type:"info" },
+  { t:"13:00:00", level:"INFO",  msg:"APScheduler: dixon_afternoon_bot TRIGGERED (cron: mon-fri 13:00)", type:"info" },
+  { t:"11:28:14", level:"TRADE", msg:"DIXON Morning ORB — PE EXIT at ₹72. SL hit. PnL: -₹800", type:"warn" },
+  { t:"09:35:22", level:"TRADE", msg:"DIXON Morning ORB — PE ENTRY at ₹88. Qty:50. ORB Low:14820 Trigger:14810", type:"success" },
+  { t:"09:20:01", level:"INFO",  msg:"Morning ORB started. Fetching 09:15 candle for DIXON...", type:"info" },
+  { t:"09:15:00", level:"INFO",  msg:"APScheduler: dixon_morning_bot TRIGGERED (cron: mon-fri 09:20)", type:"info" },
+  { t:"09:00:00", level:"INFO",  msg:"System startup complete. Broker session active. 4 strategies scheduled.", type:"success" },
+  { t:"08:59:44", level:"INFO",  msg:"PostgreSQL connection OK. Heartbeat started (10s interval).", type:"info" },
+  { t:"08:59:30", level:"INFO",  msg:"FastAPI server started on :8000. APScheduler initialised.", type:"success" },
+];
+
+// ─── CLOCK & COUNTDOWN ────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  const ss = String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('liveClock').textContent = `${hh}:${mm}:${ss}`;
+  document.getElementById('liveDate').textContent = now.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'short',year:'numeric'});
+
+  // Countdown to next 13:00 or 09:20
+  const next1 = new Date(now); next1.setHours(13,0,0,0);
+  const next2 = new Date(now); next2.setHours(9,20,0,0);
+  let target = null, label = '';
+  if (now < next2) { target = next2; label = "DIXON Morning ORB — Today 09:20"; }
+  else if (now < next1) { target = next1; label = "DIXON Afternoon ORB — Today 13:00"; }
+  else {
+    const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate()+1);
+    tomorrow.setHours(9,20,0,0); target = tomorrow;
+    label = "DIXON Morning ORB — Tomorrow 09:20";
+  }
+  document.getElementById('nextRunLabel').textContent = label;
+  const diff = Math.max(0, target - now);
+  const ch = String(Math.floor(diff/3600000)).padStart(2,'0');
+  const cm = String(Math.floor((diff%3600000)/60000)).padStart(2,'0');
+  const cs = String(Math.floor((diff%60000)/1000)).padStart(2,'0');
+  document.getElementById('countdown').textContent = `${ch}:${cm}:${cs}`;
+}
+setInterval(updateClock,1000);
+updateClock();
+
+// ─── WEEK GRID ─────────────────────────────────────────────────────────────────
+function buildWeekGrid() {
+  const now = new Date();
+  const todayDay = now.getDay(); // 0=Sun ... 6=Sat
+  const dayNames = ['Mon','Tue','Wed','Thu','Fri'];
+  const fullNames = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+  const grid = document.getElementById('weekGrid');
+  dayNames.forEach((d,i) => {
+    const jsDay = i+1; // 1=Mon
+    const isToday = todayDay === jsDay;
+    const card = document.createElement('div');
+    card.className = 'day-card' + (isToday?' today':'');
+    card.innerHTML = `
+      <div class="day-name">${isToday?'🟢 ':''} ${fullNames[i]}</div>
+      <div class="session-slot morning-slot">
+        <div class="slot-time">09:20 — 11:30</div>
+        <div class="slot-name">🌅 Morning ORB</div>
+      </div>
+      <div class="session-slot afternoon-slot">
+        <div class="slot-time">13:05 — 15:15</div>
+        <div class="slot-name">🌆 Afternoon ORB</div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+buildWeekGrid();
+
+// ─── SCHEDULE TABLE ────────────────────────────────────────────────────────────
+function buildSchedule() {
+  const tbody = document.getElementById('scheduleBody');
+  const now = new Date();
+  const todayIdx = now.getDay()-1; // 0=Mon
+  const days = ["Mon","Tue","Wed","Thu","Fri"];
+  STRATEGIES.forEach(s => {
+    const tr = document.createElement('tr');
+    const dayPills = days.map((d,i) =>
+      `<span class="day-pill ${i===todayIdx?'today':'active-day'}">${d}</span>`
+    ).join('');
+    const statusMap = {
+      running:'<span class="status-badge running"><span class="dot"></span>Running</span>',
+      scheduled:'<span class="status-badge scheduled"><span class="dot"></span>Scheduled</span>',
+      completed:'<span class="status-badge completed"><span class="dot"></span>Completed</span>',
+      failed:'<span class="status-badge failed"><span class="dot"></span>Failed</span>',
+    };
+    tr.innerHTML = `
+      <td><strong>${s.name}</strong></td>
+      <td><code style="background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:12px">${s.stock}</code></td>
+      <td><span class="session-badge ${s.session}">${s.session==='morning'?'🌅 Morning':'🌆 Afternoon'}</span></td>
+      <td><strong>${s.triggerCandle}</strong></td>
+      <td style="color:var(--accent-red)">${s.exit}</td>
+      <td><div class="day-pills">${dayPills}</div></td>
+      <td>${statusMap[s.status]||''}</td>
+      <td><label class="toggle"><input type="checkbox" ${s.status!=='failed'?'checked':''}/><span class="toggle-slider"></span></label></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  // Week label
+  const d = new Date();
+  const mon = new Date(d); mon.setDate(d.getDate()-d.getDay()+1);
+  const fri = new Date(mon); fri.setDate(mon.getDate()+4);
+  document.getElementById('weekRangeLabel').textContent =
+    `Week: ${mon.toLocaleDateString('en-IN',{day:'numeric',month:'short'})} — ${fri.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}`;
+}
+buildSchedule();
+
+// ─── STRATEGIES ────────────────────────────────────────────────────────────────
+function buildStrategies() {
+  const grid = document.getElementById('strategyGrid');
+  STRATEGIES.forEach(s => {
+    const card = document.createElement('div');
+    card.className = 'strategy-card';
+    const statusBadge = s.status==='running'
+      ? '<span class="status-badge running"><span class="dot"></span>Running</span>'
+      : s.status==='scheduled'
+      ? '<span class="status-badge scheduled"><span class="dot"></span>Scheduled</span>'
+      : '<span class="status-badge completed">✓ Completed</span>';
+    card.innerHTML = `
+      <div class="s-header">
+        <div>
+          <div class="s-name">${s.name}</div>
+          <div class="s-stock">${s.stock}</div>
+        </div>
+        ${statusBadge}
+      </div>
+      <div class="s-meta">
+        <span class="session-badge ${s.session}">${s.session==='morning'?'🌅 Morning':'🌆 Afternoon'}</span>
+        <span class="s-tag">ORB Strategy</span>
+        <span class="s-tag">Mon–Fri</span>
+        <span class="s-tag">Win ${s.winRate}%</span>
+      </div>
+      <hr class="s-divider"/>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Today's PnL</div>
+          <div class="s-pnl ${s.pnl>=0?'pos':'neg'}">${s.pnl>=0?'+':''}₹${Math.abs(s.pnl).toLocaleString()}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Trades This Month</div>
+          <div style="font-size:20px;font-weight:700">${s.trades}</div>
+        </div>
+      </div>
+      <hr class="s-divider"/>
+      <div class="s-times">
+        <div class="s-time-item"><div class="t-label">Candle</div><div class="t-val">${s.triggerCandle}</div></div>
+        <div class="s-time-item"><div class="t-label">Entry After</div><div class="t-val">${s.entry}</div></div>
+        <div class="s-time-item"><div class="t-label">Hard Exit</div><div class="t-val" style="color:var(--accent-red)">${s.exit}</div></div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+buildStrategies();
+
+// ─── TRADES TABLE ──────────────────────────────────────────────────────────────
+function buildTrades() {
+  const tbody = document.getElementById('tradesBody');
+  TRADES.forEach(t => {
+    const tr = document.createElement('tr');
+    const pnlColor = t.pnl>=0?'#3fb950':'#ff7b72';
+    const statusBadge = t.status==='completed'
+      ? '<span class="status-badge completed">✓ Profit</span>'
+      : '<span class="status-badge failed">⚡ SL Hit</span>';
+    tr.innerHTML = `
+      <td style="color:var(--text-muted)">#${t.id}</td>
+      <td>${t.date}</td>
+      <td><strong>${t.symbol}</strong></td>
+      <td><span class="session-badge ${t.session}">${t.session==='morning'?'🌅 Morning':'🌆 Afternoon'}</span></td>
+      <td style="color:${t.type==='CE'?'#3fb950':'#ffa657'};font-weight:700">${t.type}</td>
+      <td>₹${t.entry}</td>
+      <td>₹${t.exit}</td>
+      <td>${t.qty}</td>
+      <td style="color:${pnlColor};font-weight:700">${t.pnl>=0?'+':''}₹${Math.abs(t.pnl).toLocaleString()}</td>
+      <td>${statusBadge}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+buildTrades();
+
+// ─── LOGS ──────────────────────────────────────────────────────────────────────
+function buildLogs() {
+  const container = document.getElementById('logsContainer');
+  container.innerHTML = '';
+  LOGS.forEach(l => {
+    const div = document.createElement('div');
+    div.className = `log-line ${l.type}`;
+    div.dataset.level = l.level;
+    div.innerHTML = `<span class="log-time">${l.t}</span><span class="log-level">[${l.level}]</span><span class="log-msg">${l.msg}</span>`;
+    container.appendChild(div);
+  });
+}
+buildLogs();
+let logFilter = 'ALL';
+function filterLog(f) {
+  logFilter = f;
+  document.querySelectorAll('#logsContainer .log-line').forEach(el => {
+    el.style.display = (f==='ALL' || el.dataset.level===f) ? 'flex' : 'none';
+  });
+}
+function clearLogs() { document.getElementById('logsContainer').innerHTML = '<div class="log-line info"><span class="log-time">--:--:--</span><span class="log-level">[INFO]</span><span class="log-msg">Logs cleared.</span></div>'; }
+
+// ─── PNL CHART ─────────────────────────────────────────────────────────────────
+function buildChart() {
+  const canvas = document.getElementById('pnlChart');
+  const ctx = canvas.getContext('2d');
+  const w = canvas.offsetWidth; const h = 140;
+  canvas.width = w; canvas.height = h;
+  const data = [1200, -300, 2100, 800, 2340];
+  const labels = ['Mon','Tue','Wed','Thu','Fri'];
+  const max = Math.max(...data.map(Math.abs)) * 1.2;
+  const mid = h/2;
+  ctx.clearRect(0,0,w,h);
+  // Zero line
+  ctx.strokeStyle = '#30363d'; ctx.lineWidth = 1;
+  ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(0,mid); ctx.lineTo(w,mid); ctx.stroke();
+  ctx.setLineDash([]);
+  // Bars
+  const bw = (w-60)/(data.length*2+1);
+  data.forEach((v,i) => {
+    const x = 30 + bw + i*(bw*2+bw*0.4);
+    const barH = Math.abs(v)/max * (h/2 - 16);
+    const y = v>=0 ? mid-barH : mid;
+    const grad = ctx.createLinearGradient(0, y, 0, y+barH);
+    if(v>=0){ grad.addColorStop(0,'#3fb950'); grad.addColorStop(1,'rgba(63,185,80,.3)'); }
+    else { grad.addColorStop(0,'rgba(255,123,114,.3)'); grad.addColorStop(1,'#ff7b72'); }
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.roundRect(x, y, bw*1.8, barH, 3);
+    ctx.fill();
+    // Label
+    ctx.fillStyle = '#8b949e'; ctx.font = '11px Segoe UI'; ctx.textAlign = 'center';
+    ctx.fillText(labels[i], x+bw*0.9, h-4);
+    ctx.fillStyle = v>=0?'#3fb950':'#ff7b72'; ctx.font = '10px Segoe UI';
+    const yText = v>=0 ? y-5 : y+barH+12;
+    ctx.fillText((v>=0?'+':'')+v.toLocaleString(), x+bw*0.9, yText);
+  });
+}
+setTimeout(buildChart, 100);
+
+// ─── LTP SIMULATION ───────────────────────────────────────────────────────────
+function simPrices() {
+  const ltp1 = 158 + (Math.random()-0.5)*10; const pnl1 = (ltp1-142)*50;
+  const ltp2 = 112 + (Math.random()-0.5)*8;  const pnl2 = (ltp2-98)*50;
+  document.getElementById('ltp1').textContent = '₹'+ltp1.toFixed(0);
+  document.getElementById('ltp2').textContent = '₹'+ltp2.toFixed(0);
+  document.getElementById('pnl1').textContent = (pnl1>=0?'+':'')+' ₹'+Math.abs(pnl1).toFixed(0);
+  document.getElementById('pnl1').style.color = pnl1>=0?'#3fb950':'#ff7b72';
+  document.getElementById('pnl2').textContent = (pnl2>=0?'+':'')+' ₹'+Math.abs(pnl2).toFixed(0);
+  document.getElementById('pnl2').style.color = pnl2>=0?'#3fb950':'#ff7b72';
+}
+setInterval(simPrices, 2000);
+
+// ─── NAV ──────────────────────────────────────────────────────────────────────
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  el.classList.add('active');
+}
+
+function emergencyStop() {
+  if(confirm('🚨 Emergency Stop: Close ALL open positions NOW?')) {
+    alert('✅ Emergency stop executed. All positions closed via market order.');
+  }
+}
+
+// ─── AUTO LOG UPDATES ─────────────────────────────────────────────────────────
+setInterval(() => {
+  const msgs = [
+    {level:'INFO', msg:'Heartbeat OK — last seen 0s ago', type:'info'},
+    {level:'INFO', msg:'Monitoring DIXON CE — LTP updating...', type:'info'},
+    {level:'TRADE', msg:'Trailing SL updated: DIXON CE new SL ₹148', type:'success'},
+  ];
+  const m = msgs[Math.floor(Math.random()*msgs.length)];
+  const now = new Date();
+  const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  LOGS.unshift({t, level:m.level, msg:m.msg, type:m.type});
+  buildLogs();
+  if(logFilter!=='ALL') filterLog(logFilter);
+}, 5000);
+</script>
+</body>
+</html>
